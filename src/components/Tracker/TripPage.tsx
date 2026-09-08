@@ -51,6 +51,19 @@ export function TripPage() {
   }, [stopTracking, currentTripId, stats, elapsedS]);
 
   const handleStart = useCallback(async () => {
+    // Request native permissions if on Capacitor
+    const isNative = !!(window as unknown as Record<string, unknown>).Capacitor;
+    if (isNative) {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const perm = await Geolocation.requestPermissions();
+        if (perm.location !== 'granted') {
+          alert('Для работы трекера нужно разрешить геолокацию.');
+          return;
+        }
+      } catch {}
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 

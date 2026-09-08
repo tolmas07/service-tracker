@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ServiceTracker</string>
+    <string name="title_activity_main">ServiceTracker</string>
+    <string name="package_name">com.service.tracker</string>
+    <string name="custom_url_scheme">com.service.tracker</string>
+</resources>
