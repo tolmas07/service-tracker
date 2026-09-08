@@ -1,11 +1,11 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { usePoint, useDeletePoint, useUpdatePointStatus } from '../../hooks/usePoints';
+import { usePoint, useDeletePoint, useUpdatePointStatus, useUpdatePoint } from '../../hooks/usePoints';
 import { useVisits, useVisitPhotos } from '../../hooks/useVisits';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { MapPin, ArrowLeft, Wrench, Trash2, Navigation } from 'lucide-react';
+import { MapPin, ArrowLeft, Wrench, Trash2, Navigation, Pencil, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function VisitPhotos({ visitId }: { visitId: string }) {
@@ -47,8 +47,37 @@ export function PointDetailPage() {
   const { data: visits = [], isLoading: visitsLoading } = useVisits(id);
   const deletePoint = useDeletePoint();
   const updateStatus = useUpdatePointStatus();
+  const updatePoint = useUpdatePoint();
   const { user } = useAuthStore();
   const isWorker = user?.role === 'worker';
+
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', address: '', lat: '', lng: '', notes: '' });
+
+  const startEdit = () => {
+    if (!point) return;
+    setEditForm({
+      name: point.name,
+      address: point.address || '',
+      lat: point.latitude.toFixed(6),
+      lng: point.longitude.toFixed(6),
+      notes: point.notes || '',
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!point || !editForm.name || !editForm.lat || !editForm.lng) return;
+    await updatePoint.mutateAsync({
+      id: point.id,
+      name: editForm.name,
+      address: editForm.address || undefined,
+      latitude: parseFloat(editForm.lat),
+      longitude: parseFloat(editForm.lng),
+      notes: editForm.notes || undefined,
+    });
+    setEditing(false);
+  };
 
   const handleDelete = async () => {
     if (!point) return;
@@ -81,22 +110,66 @@ export function PointDetailPage() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-blue-600 mb-2 hover:text-blue-700">
           <ArrowLeft size={16} /> Назад
         </button>
-        <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
-        {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
-        <div className="flex items-center gap-3 mt-3">
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-            point.status === 'working' ? 'bg-green-100 text-green-700' :
-            point.status === 'not_working' ? 'bg-red-100 text-red-700' :
-            'bg-gray-100 text-gray-600'
-          }`}>
-            {point.status === 'working' ? 'Работает' :
-             point.status === 'not_working' ? 'Не работает' : 'Неизвестно'}
-          </span>
-          <span className="text-xs text-gray-400 flex items-center gap-1">
-            <MapPin size={12} />
-            {point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}
-          </span>
-        </div>
+
+        {editing ? (
+          /* Edit form */
+          <div className="space-y-3 mt-2">
+            <div>
+              <label className="block text-[10px] text-gray-400 mb-1">Название</label>
+              <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-400 mb-1">Адрес</label>
+              <input type="text" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-400 mb-1">Широта</label>
+                <input type="number" value={editForm.lat} onChange={e => setEditForm({ ...editForm, lat: e.target.value })}
+                  step="0.000001" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-400 mb-1">Долгота</label>
+                <input type="number" value={editForm.lng} onChange={e => setEditForm({ ...editForm, lng: e.target.value })}
+                  step="0.000001" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-gray-400 mb-1">Заметки</label>
+              <input type="text" value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">Отмена</button>
+              <button onClick={saveEdit} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1">
+                <Check size={14} /> Сохранить
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* View mode */
+          <>
+            <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
+            {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
+            {point.notes && <p className="text-xs text-gray-400 mt-1">{point.notes}</p>}
+            <div className="flex items-center gap-3 mt-3">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                point.status === 'working' ? 'bg-green-100 text-green-700' :
+                point.status === 'not_working' ? 'bg-red-100 text-red-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                {point.status === 'working' ? 'Работает' :
+                 point.status === 'not_working' ? 'Не работает' : 'Неизвестно'}
+              </span>
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <MapPin size={12} />
+                {point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}
+              </span>
+            </div>
+          </>
+        )}
         <div className="flex gap-2 mt-3">
           <a
             href={`yandexmaps://build_route?to=${point.latitude},${point.longitude}`}
@@ -125,6 +198,12 @@ export function PointDetailPage() {
         </Link>
         {isWorker && (
           <div className="flex gap-2">
+            <button
+              onClick={startEdit}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Pencil size={14} /> Редактировать
+            </button>
             <button
               onClick={() => updateStatus.mutate({ id: point.id, status: 'working' })}
               className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
