@@ -114,9 +114,8 @@ export function Header() {
   return (
     <>
       <header className="bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between shrink-0 z-50 shadow-sm">
-        <Link to="/" className="flex items-center gap-2 no-underline">
-          <img src="/logo.svg" alt="Uzmulk" className="h-7 w-auto" />
-          <span className="text-sm font-bold text-gray-900 hidden sm:block">UzmulkTracker</span>
+        <Link to="/" className="flex items-center no-underline">
+          <img src="/logo.svg" alt="UzmulkTracker" className="h-8 w-auto" />
         </Link>
 
         {/* Desktop nav */}

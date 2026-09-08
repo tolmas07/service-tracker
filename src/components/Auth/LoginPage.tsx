@@ -57,8 +57,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.svg" alt="Uzmulk" className="h-12 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900">UzmulkTracker</h1>
+          <img src="/logo.svg" alt="UzmulkTracker" className="h-10 mx-auto mb-4" />
           <p className="text-sm text-gray-500 mt-1">uzmulk.uz</p>
         </div>
 
