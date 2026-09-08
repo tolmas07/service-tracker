@@ -293,9 +293,18 @@ export function MapView() {
       <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[1000] border border-gray-100">
         <div className="font-semibold text-gray-700 mb-2">Статус точек</div>
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-gray-600">Работает</span></div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span><span className="text-gray-600">Не работает</span></div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-500"></span><span className="text-gray-600">Неизвестно</span></div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-gray-600">Работает</span></div>
+            <strong className="text-green-600">{points.filter(p => p.status === 'working').length}</strong>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span><span className="text-gray-600">Не работает</span></div>
+            <strong className="text-red-600">{points.filter(p => p.status === 'not_working').length}</strong>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-500"></span><span className="text-gray-600">Неизвестно</span></div>
+            <strong className="text-gray-500">{points.filter(p => p.status === 'unknown').length}</strong>
+          </div>
         </div>
         <div className="mt-2 pt-2 border-t border-gray-100 text-gray-500">
           Всего: <strong>{points.length}</strong>
