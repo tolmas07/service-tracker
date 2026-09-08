@@ -1,14 +1,14 @@
 {
-  "name": "ServiceTracker",
-  "short_name": "ServiceTracker",
-  "description": "Трекер сервисных работ и маршрутов",
+  "name": "UzmulkTracker",
+  "short_name": "UzmulkTracker",
+  "description": "Трекер сервисных работ — Uzmulk",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "theme_color": "#0076FE",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

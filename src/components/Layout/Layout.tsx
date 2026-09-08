@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Map, Route, ClipboardList, BarChart3, LogOut, Navigation, Key, X } from 'lucide-react';
+import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X } from 'lucide-react';
 
 const workerLinks = [
   { to: '/', icon: Map, label: 'Карта' },
@@ -114,11 +114,9 @@ export function Header() {
   return (
     <>
       <header className="bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between shrink-0 z-50 shadow-sm">
-        <Link to="/" className="flex items-center gap-2.5 no-underline">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Navigation size={18} className="text-white" />
-          </div>
-          <span className="text-lg font-bold text-gray-900 hidden sm:block">ServiceTracker</span>
+        <Link to="/" className="flex items-center gap-2 no-underline">
+          <img src="/logo.svg" alt="Uzmulk" className="h-7 w-auto" />
+          <span className="text-sm font-bold text-gray-900 hidden sm:block">UzmulkTracker</span>
         </Link>
 
         {/* Desktop nav */}
