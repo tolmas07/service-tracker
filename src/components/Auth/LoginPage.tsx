@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Navigation, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 
 export function LoginPage() {
-  const { signIn } = useAuthStore();
+  const { signIn, user } = useAuthStore();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'reset'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,13 +15,23 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Redirect to home if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     const result = await signIn(email, password);
-    if (result.error) setError(result.error);
-    setLoading(false);
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+    }
+    // If success, the useEffect above will redirect
   };
 
   const handleReset = async (e: React.FormEvent) => {
