@@ -1,0 +1,343 @@
+import { useState, useEffect } from 'react';
+import { useCreateVisit, useUploadPhoto, useVisitPhotos } from '../../hooks/useVisits';
+import { usePoints } from '../../hooks/usePoints';
+import { useAuthStore } from '../../stores/authStore';
+import { WORK_TYPES, VISIT_STATUSES } from '../../types';
+import type { Visit } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { Camera, X, ArrowLeft, Check, Trash2 } from 'lucide-react';
+
+interface VisitFormProps {
+  pointId?: string;
+  initialData?: {
+    id: string;
+    point_id: string;
+    work_type: string;
+    work_description?: string;
+    status_after?: string;
+    notes?: string;
+  };
+  onSave?: (data: Record<string, string | undefined>) => Promise<void>;
+}
+
+function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () => void }) {
+  const { data: photos = [] } = useVisitPhotos(visitId);
+  const queryClient = useQueryClient();
+  const [urls, setUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const load = async () => {
+      const entries: Record<string, string> = {};
+      for (const photo of photos) {
+        const { data } = supabase.storage.from('photos').getPublicUrl(photo.storage_path);
+        entries[photo.id] = data.publicUrl;
+      }
+      setUrls(entries);
+    };
+    load();
+  }, [photos]);
+
+  const handleDelete = async (photoId: string, storagePath: string) => {
+    if (!confirm('Удалить фото?')) return;
+    await supabase.storage.from('photos').remove([storagePath]);
+    await supabase.from('photos').delete().eq('id', photoId);
+    queryClient.invalidateQueries({ queryKey: ['photos', visitId] });
+    onDelete();
+  };
+
+  if (photos.length === 0) return null;
+
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {photos.map((photo) => (
+        <div key={photo.id} className="relative group">
+          <img
+            src={urls[photo.id]}
+            alt={photo.caption || ''}
+            className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+          />
+          <button
+            type="button"
+            onClick={() => handleDelete(photo.id, photo.storage_path)}
+            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+          >
+            <Trash2 size={10} />
+          </button>
+          {photo.caption && (
+            <p className="text-[9px] text-gray-400 text-center mt-0.5 truncate w-20">{photo.caption}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function VisitForm({ pointId: initialPointId, initialData, onSave }: VisitFormProps) {
+  const { user } = useAuthStore();
+  const { data: points = [] } = usePoints();
+  const createVisit = useCreateVisit();
+  const uploadPhoto = useUploadPhoto();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const isEdit = !!initialData;
+
+  const [pointId, setPointId] = useState(initialData?.point_id || initialPointId || '');
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(
+    initialData?.work_type ? initialData.work_type.split(',').map(s => s.trim()) : []
+  );
+  const [description, setDescription] = useState(initialData?.work_description || '');
+  const [statusAfter, setStatusAfter] = useState<string>(initialData?.status_after || '');
+  const [notes, setNotes] = useState(initialData?.notes || '');
+  const [files, setFiles] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
+
+  const toggleType = (type: string) => {
+    setSelectedTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles([...files, ...Array.from(e.target.files)]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !pointId || selectedTypes.length === 0) return;
+    setSubmitting(true);
+
+    try {
+      const workTypeStr = selectedTypes.join(', ');
+
+      if (isEdit && onSave) {
+        await onSave({
+          id: initialData!.id,
+          point_id: pointId,
+          work_type: workTypeStr,
+          work_description: description || undefined,
+          status_after: statusAfter || undefined,
+          notes: notes || undefined,
+        });
+
+        // Upload new photos in edit mode
+        for (const file of files) {
+          await uploadPhoto.mutateAsync({
+            visitId: initialData!.id,
+            file,
+            photoType: file.name.toLowerCase().includes('printer') ? 'printer' : 'pc',
+          });
+        }
+      } else {
+        const visit = await createVisit.mutateAsync({
+          point_id: pointId,
+          worker_id: user.id,
+          work_type: workTypeStr,
+          work_description: description || undefined,
+          status_after: (statusAfter || undefined) as Visit['status_after'],
+          notes: notes || undefined,
+          visited_at: new Date().toISOString(),
+        });
+
+        for (const file of files) {
+          await uploadPhoto.mutateAsync({
+            visitId: visit.id,
+            file,
+            photoType: file.name.toLowerCase().includes('printer') ? 'printer' : 'pc',
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+      navigate('/history');
+    } catch (err) {
+      console.error('Error saving visit:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    working: 'bg-green-50 border-green-500 text-green-700',
+    not_working: 'bg-red-50 border-red-500 text-red-700',
+    sent_to_repair: 'bg-amber-50 border-amber-500 text-amber-700',
+    unknown: 'bg-gray-50 border-gray-400 text-gray-600',
+  };
+
+  return (
+    <div className="flex-1 bg-gray-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
+        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg">
+          <ArrowLeft size={20} className="text-gray-600" />
+        </button>
+        <h2 className="text-lg font-bold text-gray-900">
+          {isEdit ? 'Редактировать отчёт' : 'Новый отчёт'}
+        </h2>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Point selector — editable in both modes */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">Точка обслуживания *</label>
+          <select
+            value={pointId}
+            onChange={(e) => setPointId(e.target.value)}
+            required
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+          >
+            <option value="">Выберите точку</option>
+            {points.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}{p.address ? ` — ${p.address}` : ''}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Work types — multi-select */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">
+            Тип работы * <span className="text-gray-400">(можно несколько)</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {WORK_TYPES.map((wt) => {
+              const selected = selectedTypes.includes(wt);
+              return (
+                <button
+                  key={wt}
+                  type="button"
+                  onClick={() => toggleType(wt)}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                    selected
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {selected && <Check size={14} />}
+                  {wt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">Описание работ</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            placeholder="Что было сделано..."
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          />
+        </div>
+
+        {/* Status after */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">Статус после работ</label>
+          <div className="grid grid-cols-2 gap-2">
+            {VISIT_STATUSES.map((s) => {
+              const active = statusAfter === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setStatusAfter(active ? '' : s.value)}
+                  className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                    active ? statusColors[s.value] : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {active && <Check size={14} />}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">Заметки</label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Дополнительные заметки"
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          />
+        </div>
+
+        {/* Photos — always visible */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1.5">Фотографии</label>
+
+          {/* Existing photos (edit mode) */}
+          {isEdit && initialData?.id && (
+            <div className="mb-3" key={photoRefreshKey}>
+              <p className="text-[11px] text-gray-400 mb-1.5">Загруженные фото (нажмите ✕ чтобы удалить):</p>
+              <ExistingPhotos
+                visitId={initialData.id}
+                onDelete={() => setPhotoRefreshKey(k => k + 1)}
+              />
+            </div>
+          )}
+
+          {/* New photo upload */}
+          <label className="flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 text-sm text-gray-500 transition-colors">
+            <Camera size={20} />
+            <span>{isEdit ? 'Добавить ещё фото' : 'Сделать фото или выбрать из галереи'}</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </label>
+
+          {files.length > 0 && (
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {files.map((file, i) => (
+                <div key={i} className="relative group">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt=""
+                    className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Submit */}
+        <div className="sticky bottom-0 bg-gray-50 pt-3 pb-4">
+          <button
+            type="submit"
+            disabled={submitting || !pointId || selectedTypes.length === 0}
+            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            {submitting ? 'Сохранение...' : isEdit ? 'Сохранить изменения' : 'Сохранить отчёт'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
