@@ -97,13 +97,11 @@ export function ManagerDashboard() {
     },
   });
 
-  // Fetch points (filtered by worker or all)
+  // Fetch points (ALL points always visible — they are shared locations)
   const { data: points = [] } = useQuery({
-    queryKey: ['points', selectedWorker],
+    queryKey: ['points'],
     queryFn: async () => {
-      let q = supabase.from('points').select('*').order('name');
-      if (selectedWorker !== 'all') q = q.eq('worker_id', selectedWorker);
-      const { data } = await q;
+      const { data } = await supabase.from('points').select('*').order('name');
       return (data || []) as Point[];
     },
   });
@@ -314,15 +312,21 @@ export function ManagerDashboard() {
         {activeTab === 'points' && (
           <div className="p-4 space-y-3">
             {/* Status summary */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <StatusPill color="green" count={workingCount} label="Работают" />
               <StatusPill color="red" count={notWorkingCount} label="Не работают" />
               <StatusPill color="amber" count={sentToRepairCount} label="На ремонте" />
             </div>
 
-            {points.map(point => (
+            {/* Sorted: working first, then not_working, then sent_to_repair, then unknown */}
+            {[...points]
+              .sort((a, b) => {
+                const order: Record<string, number> = { working: 0, not_working: 1, sent_to_repair: 2, unknown: 3 };
+                return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+              })
+              .map(point => (
               <div key={point.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full shrink-0" style={{ background: statusColors[point.status] }} />
+                <div className="w-4 h-4 rounded-full shrink-0" style={{ background: statusColors[point.status] || '#6b7280' }} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-900 truncate">{point.name}</div>
                   {point.address && <div className="text-[11px] text-gray-400 truncate">{point.address}</div>}
