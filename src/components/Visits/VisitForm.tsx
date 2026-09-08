@@ -328,7 +328,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
         </div>
 
         {/* Submit */}
-        <div className="sticky bottom-0 bg-gray-50 pt-3 pb-4">
+        <div className="bg-gray-50 pt-3 pb-8">
           <button
             type="submit"
             disabled={submitting || !pointId || selectedTypes.length === 0}

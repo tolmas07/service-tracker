@@ -29,6 +29,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function WorkerOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuthStore();
+  if (loading) return <div className="flex-1 flex items-center justify-center text-gray-400">Загрузка...</div>;
+  if (!user) return <Navigate to="/login" />;
+  if (user.role === 'manager') return <Navigate to="/manager" />;
+  return <>{children}</>;
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col h-full">
@@ -64,51 +72,51 @@ function App() {
           <Route
             path="/trip"
             element={
-              <ProtectedRoute>
+              <WorkerOnlyRoute>
                 <AppLayout>
                   <TripPage />
                 </AppLayout>
-              </ProtectedRoute>
+              </WorkerOnlyRoute>
             }
           />
           <Route
             path="/trips/new"
             element={
-              <ProtectedRoute>
+              <WorkerOnlyRoute>
                 <AppLayout>
                   <ManualTripForm />
                 </AppLayout>
-              </ProtectedRoute>
+              </WorkerOnlyRoute>
             }
           />
           <Route
             path="/history"
             element={
-              <ProtectedRoute>
+              <WorkerOnlyRoute>
                 <AppLayout>
                   <HistoryPage />
                 </AppLayout>
-              </ProtectedRoute>
+              </WorkerOnlyRoute>
             }
           />
           <Route
             path="/visits/new"
             element={
-              <ProtectedRoute>
+              <WorkerOnlyRoute>
                 <AppLayout>
                   <VisitFormPage />
                 </AppLayout>
-              </ProtectedRoute>
+              </WorkerOnlyRoute>
             }
           />
           <Route
             path="/visits/:id/edit"
             element={
-              <ProtectedRoute>
+              <WorkerOnlyRoute>
                 <AppLayout>
                   <EditVisitPage />
                 </AppLayout>
-              </ProtectedRoute>
+              </WorkerOnlyRoute>
             }
           />
           <Route
