@@ -128,18 +128,6 @@ export function MapView() {
     setShowForm(true);
   };
 
-  const openEditForm = (point: Point) => {
-    setEditingPoint(point);
-    setForm({
-      name: point.name,
-      lat: point.latitude.toFixed(6),
-      lng: point.longitude.toFixed(6),
-      address: point.address || '',
-      notes: point.notes || '',
-    });
-    setShowForm(true);
-  };
-
   const handleSave = async () => {
     if (!form.name || !form.lat || !form.lng) return;
 
@@ -262,7 +250,7 @@ export function MapView() {
                     </div>
                     <div className="flex gap-1.5 mt-2">
                       <button
-                        onClick={() => openEditForm(point)}
+                        onClick={() => navigate(`/points/${point.id}`)}
                         className="flex-1 text-xs px-2 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium flex items-center justify-center gap-1"
                       >
                         <Pencil size={12} /> Изменить
@@ -277,12 +265,14 @@ export function MapView() {
                   </>
                 )}
 
-                <button
-                  onClick={() => navigate(`/points/${point.id}`)}
-                  className="w-full mt-2 text-xs text-blue-600 py-1.5 hover:bg-blue-50 rounded-lg transition-colors font-medium"
-                >
-                  Подробнее →
-                </button>
+                {!isWorker && (
+                  <button
+                    onClick={() => navigate(`/points/${point.id}`)}
+                    className="w-full mt-2 text-xs text-blue-600 py-1.5 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                  >
+                    Подробнее →
+                  </button>
+                )}
               </div>
             </Popup>
           </Marker>
