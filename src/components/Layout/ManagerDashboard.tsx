@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { Point, Trip, TripPoint, Visit, PointStatus } from '../../types';
+import type { Point, Trip, TripPoint, PointStatus } from '../../types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Route, MapPin, Ruler, Wallet, Calendar, Users, BarChart3, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronUp, Route, MapPin, Ruler, Wallet, Users, BarChart3 } from 'lucide-react';
 
 const statusColors: Record<PointStatus, string> = {
   working: '#16a34a',
@@ -78,13 +78,12 @@ function TripRouteMap({ tripId }: { tripId: string }) {
   );
 }
 
-type Tab = 'overview' | 'trips' | 'visits' | 'points';
+type Tab = 'overview' | 'trips' | 'points';
 
 export function ManagerDashboard() {
   const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
-  const [expandedVisit, setExpandedVisit] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -117,17 +116,6 @@ export function ManagerDashboard() {
     },
   });
 
-  // Fetch visits
-  const { data: visits = [] } = useQuery({
-    queryKey: ['visits-mgr', selectedWorker],
-    queryFn: async () => {
-      let q = supabase.from('visits').select('*, point:points(name)').order('visited_at', { ascending: false }).limit(100);
-      if (selectedWorker !== 'all') q = q.eq('worker_id', selectedWorker);
-      const { data } = await q;
-      return (data || []) as (Visit & { point?: { name: string } })[];
-    },
-  });
-
   // Stats
   const filteredTrips = dateFrom || dateTo
     ? trips.filter(t => {
@@ -147,7 +135,6 @@ export function ManagerDashboard() {
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'overview', label: 'Обзор', icon: BarChart3 },
     { key: 'trips', label: 'Поездки', icon: Route },
-    { key: 'visits', label: 'Посещения', icon: ClipboardList },
     { key: 'points', label: 'Точки', icon: MapPin },
   ];
 
@@ -254,57 +241,6 @@ export function ManagerDashboard() {
             </div>
 
             <TripList trips={filteredTrips} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
-          </div>
-        )}
-
-        {/* Visits tab */}
-        {activeTab === 'visits' && (
-          <div className="p-4 space-y-3">
-            {visits.length === 0 ? (
-              <EmptyState icon={ClipboardList} text="Нет посещений" />
-            ) : (
-              visits.map(visit => (
-                <div key={visit.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <button
-                    onClick={() => setExpandedVisit(expandedVisit === visit.id ? null : visit.id)}
-                    className="w-full p-3.5 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <MapPin size={14} className="text-blue-600 shrink-0" />
-                          <span className="text-sm font-medium text-gray-900 truncate">{visit.point?.name || 'Неизвестная точка'}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {visit.work_type.split(',').map((t, i) => (
-                            <span key={i} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-md font-medium">{t.trim()}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-2 shrink-0">
-                        {visit.status_after && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusBadge[visit.status_after] || 'bg-gray-100 text-gray-600'}`}>
-                            {statusLabels[visit.status_after] || visit.status_after}
-                          </span>
-                        )}
-                        {expandedVisit === visit.id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                      </div>
-                    </div>
-                  </button>
-
-                  {expandedVisit === visit.id && (
-                    <div className="px-3.5 pb-3.5 border-t border-gray-100 pt-2">
-                      <div className="text-xs text-gray-400 flex items-center gap-1 mb-2">
-                        <Calendar size={12} />
-                        {format(new Date(visit.visited_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-                      </div>
-                      {visit.work_description && <p className="text-xs text-gray-600 mb-2">{visit.work_description}</p>}
-                      {visit.notes && <p className="text-xs text-gray-400">📝 {visit.notes}</p>}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
           </div>
         )}
 
