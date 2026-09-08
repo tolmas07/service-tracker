@@ -149,33 +149,28 @@ export function PointDetailPage() {
             </div>
           </div>
         ) : (
-          /* View mode */
+          /* View mode — only name, address, notes, coords */
           <>
             <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
             {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
             {point.notes && <p className="text-xs text-gray-400 mt-1">{point.notes}</p>}
-            <div className="flex items-center gap-3 mt-3">
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                point.status === 'working' ? 'bg-green-100 text-green-700' :
-                point.status === 'not_working' ? 'bg-red-100 text-red-700' :
-                'bg-gray-100 text-gray-600'
-              }`}>
-                {point.status === 'working' ? 'Работает' :
-                 point.status === 'not_working' ? 'Не работает' : 'Неизвестно'}
-              </span>
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <MapPin size={12} />
-                {point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}
-              </span>
+            <div className="flex items-center gap-2 mt-2">
+              <MapPin size={12} className="text-gray-400" />
+              <span className="text-xs text-gray-400">{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</span>
             </div>
           </>
         )}
-        <div className="flex gap-2 mt-3">
+      </div>
+
+      {/* Action */}
+      <div className="p-4 shrink-0 space-y-2">
+        {/* Navigation */}
+        <div className="flex gap-2">
           <a
             href={`yandexmaps://build_route?to=${point.latitude},${point.longitude}`}
             className="flex-1 text-xs px-3 py-2.5 bg-yellow-50 text-yellow-800 rounded-xl hover:bg-yellow-100 transition-colors font-medium flex items-center justify-center gap-1.5 border border-yellow-200"
           >
-            <Navigation size={14} /> Яндекс Навигатор
+            <Navigation size={14} /> Яндекс
           </a>
           <a
             href={`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`}
@@ -183,26 +178,26 @@ export function PointDetailPage() {
             rel="noopener noreferrer"
             className="flex-1 text-xs px-3 py-2.5 bg-green-50 text-green-800 rounded-xl hover:bg-green-100 transition-colors font-medium flex items-center justify-center gap-1.5 border border-green-200"
           >
-            <Navigation size={14} /> Google Maps
+            <Navigation size={14} /> Google
           </a>
         </div>
-      </div>
 
-      {/* Action */}
-      <div className="p-4 shrink-0 space-y-2">
+        {/* New report */}
         <Link
           to={`/visits/new?point=${point.id}`}
           className="block py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm"
         >
           + Новый отчёт
         </Link>
+
+        {/* Status + Edit + Delete */}
         {isWorker && (
           <div className="flex gap-2">
             <button
               onClick={startEdit}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
             >
-              <Pencil size={14} /> Редактировать
+              <Pencil size={14} /> Изменить
             </button>
             <button
               onClick={() => updateStatus.mutate({ id: point.id, status: 'working' })}
@@ -218,14 +213,14 @@ export function PointDetailPage() {
                 point.status === 'not_working' ? 'bg-red-100 border-red-400 text-red-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
-              Не работает
+              Не раб.
             </button>
             <button
               onClick={handleDelete}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-              title="Удалить точку"
+              className="px-3 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              title="Удалить"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </button>
           </div>
         )}
