@@ -5,7 +5,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { MapPin, ArrowLeft, Wrench, Trash2, Navigation, Pencil, Check } from 'lucide-react';
+import { MapPin, ArrowLeft, Wrench, Trash2, Navigation, Pencil, X, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function VisitPhotos({ visitId }: { visitId: string }) {
@@ -40,6 +40,80 @@ function VisitPhotos({ visitId }: { visitId: string }) {
   );
 }
 
+// Edit modal
+function EditPointModal({ point, onClose }: { point: { name: string; address?: string; latitude: number; longitude: number; notes?: string }; onClose: () => void }) {
+  const updatePoint = useUpdatePoint();
+  const { id } = useParams<{ id: string }>();
+  const [form, setForm] = useState({
+    name: point.name,
+    address: point.address || '',
+    lat: point.latitude.toFixed(6),
+    lng: point.longitude.toFixed(6),
+    notes: point.notes || '',
+  });
+
+  const handleSave = async () => {
+    if (!id || !form.name || !form.lat || !form.lng) return;
+    await updatePoint.mutateAsync({
+      id,
+      name: form.name,
+      address: form.address || undefined,
+      latitude: parseFloat(form.lat),
+      longitude: parseFloat(form.lng),
+      notes: form.notes || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1001] p-4">
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">Редактировать</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X size={20} className="text-gray-400" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Название</label>
+            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Адрес</label>
+            <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Широта</label>
+              <input type="number" value={form.lat} onChange={e => setForm({ ...form, lat: e.target.value })}
+                step="0.000001" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Долгота</label>
+              <input type="number" value={form.lng} onChange={e => setForm({ ...form, lng: e.target.value })}
+                step="0.000001" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Заметки</label>
+            <input type="text" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">Отмена</button>
+          <button onClick={handleSave} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-1.5">
+            <Check size={14} /> Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PointDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -47,37 +121,10 @@ export function PointDetailPage() {
   const { data: visits = [], isLoading: visitsLoading } = useVisits(id);
   const deletePoint = useDeletePoint();
   const updateStatus = useUpdatePointStatus();
-  const updatePoint = useUpdatePoint();
   const { user } = useAuthStore();
   const isWorker = user?.role === 'worker';
 
-  const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', address: '', lat: '', lng: '', notes: '' });
-
-  const startEdit = () => {
-    if (!point) return;
-    setEditForm({
-      name: point.name,
-      address: point.address || '',
-      lat: point.latitude.toFixed(6),
-      lng: point.longitude.toFixed(6),
-      notes: point.notes || '',
-    });
-    setEditing(true);
-  };
-
-  const saveEdit = async () => {
-    if (!point || !editForm.name || !editForm.lat || !editForm.lng) return;
-    await updatePoint.mutateAsync({
-      id: point.id,
-      name: editForm.name,
-      address: editForm.address || undefined,
-      latitude: parseFloat(editForm.lat),
-      longitude: parseFloat(editForm.lng),
-      notes: editForm.notes || undefined,
-    });
-    setEditing(false);
-  };
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleDelete = async () => {
     if (!point) return;
@@ -96,75 +143,27 @@ export function PointDetailPage() {
   }
 
   if (!point) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
-        Точка не найдена
-      </div>
-    );
+    return <div className="flex-1 flex items-center justify-center text-gray-400">Точка не найдена</div>;
   }
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col">
-      {/* Header */}
+      {/* Header — always shows info, never changes */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-blue-600 mb-2 hover:text-blue-700">
           <ArrowLeft size={16} /> Назад
         </button>
-
-        {editing ? (
-          /* Edit form */
-          <div className="space-y-3 mt-2">
-            <div>
-              <label className="block text-[10px] text-gray-400 mb-1">Название</label>
-              <input type="text" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 mb-1">Адрес</label>
-              <input type="text" value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">Широта</label>
-                <input type="number" value={editForm.lat} onChange={e => setEditForm({ ...editForm, lat: e.target.value })}
-                  step="0.000001" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">Долгота</label>
-                <input type="number" value={editForm.lng} onChange={e => setEditForm({ ...editForm, lng: e.target.value })}
-                  step="0.000001" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 mb-1">Заметки</label>
-              <input type="text" value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => setEditing(false)} className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600">Отмена</button>
-              <button onClick={saveEdit} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1">
-                <Check size={14} /> Сохранить
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* View mode — only name, address, notes, coords */
-          <>
-            <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
-            {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
-            {point.notes && <p className="text-xs text-gray-400 mt-1">{point.notes}</p>}
-            <div className="flex items-center gap-2 mt-2">
-              <MapPin size={12} className="text-gray-400" />
-              <span className="text-xs text-gray-400">{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</span>
-            </div>
-          </>
-        )}
+        <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
+        {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
+        {point.notes && <p className="text-xs text-gray-400 mt-1">{point.notes}</p>}
+        <div className="flex items-center gap-2 mt-2">
+          <MapPin size={12} className="text-gray-400" />
+          <span className="text-xs text-gray-400">{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</span>
+        </div>
       </div>
 
-      {/* Action */}
+      {/* Action buttons — stable layout */}
       <div className="p-4 shrink-0 space-y-2">
-        {/* Navigation */}
         <div className="flex gap-2">
           <a
             href={`yandexmaps://build_route?to=${point.latitude},${point.longitude}`}
@@ -174,15 +173,13 @@ export function PointDetailPage() {
           </a>
           <a
             href={`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
+            target="_blank" rel="noopener noreferrer"
             className="flex-1 text-xs px-3 py-2.5 bg-green-50 text-green-800 rounded-xl hover:bg-green-100 transition-colors font-medium flex items-center justify-center gap-1.5 border border-green-200"
           >
             <Navigation size={14} /> Google
           </a>
         </div>
 
-        {/* New report */}
         <Link
           to={`/visits/new?point=${point.id}`}
           className="block py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm"
@@ -190,11 +187,10 @@ export function PointDetailPage() {
           + Новый отчёт
         </Link>
 
-        {/* Status + Edit + Delete */}
         {isWorker && (
           <div className="flex gap-2">
             <button
-              onClick={startEdit}
+              onClick={() => setShowEditModal(true)}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
             >
               <Pencil size={14} /> Изменить
@@ -246,12 +242,8 @@ export function PointDetailPage() {
                     {format(new Date(visit.visited_at), 'dd MMM yyyy, HH:mm', { locale: ru })}
                   </span>
                 </div>
-                {visit.work_description && (
-                  <p className="text-sm text-gray-600">{visit.work_description}</p>
-                )}
-                {visit.notes && (
-                  <p className="text-xs text-gray-400 mt-1.5">📝 {visit.notes}</p>
-                )}
+                {visit.work_description && <p className="text-sm text-gray-600">{visit.work_description}</p>}
+                {visit.notes && <p className="text-xs text-gray-400 mt-1.5">📝 {visit.notes}</p>}
                 {visit.status_after && (
                   <span className={`inline-block mt-2 text-[11px] px-2 py-0.5 rounded-full font-medium ${
                     visit.status_after === 'working' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -265,6 +257,11 @@ export function PointDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Modal — overlay, doesn't move anything */}
+      {showEditModal && point && (
+        <EditPointModal point={point} onClose={() => setShowEditModal(false)} />
+      )}
     </div>
   );
 }
