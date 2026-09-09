@@ -1,11 +1,11 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { usePoint, useDeletePoint, useUpdatePointStatus, useUpdatePoint } from '../../hooks/usePoints';
+import { usePoint, useDeletePoint, useUpdatePoint } from '../../hooks/usePoints';
 import { useVisits, useVisitPhotos } from '../../hooks/useVisits';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { MapPin, ArrowLeft, Wrench, Trash2, Navigation, Pencil, X, Check } from 'lucide-react';
+import { MapPin, ArrowLeft, Wrench, Trash2, Pencil, X, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function VisitPhotos({ visitId }: { visitId: string }) {
@@ -120,7 +120,6 @@ export function PointDetailPage() {
   const { data: point, isLoading: pointLoading } = usePoint(id!);
   const { data: visits = [], isLoading: visitsLoading } = useVisits(id);
   const deletePoint = useDeletePoint();
-  const updateStatus = useUpdatePointStatus();
   const { user } = useAuthStore();
   const isWorker = user?.role === 'worker';
 
@@ -162,24 +161,8 @@ export function PointDetailPage() {
         </div>
       </div>
 
-      {/* Action buttons — stable layout */}
+      {/* Action buttons */}
       <div className="p-4 shrink-0 space-y-2">
-        <div className="flex gap-2">
-          <a
-            href={`yandexmaps://build_route?to=${point.latitude},${point.longitude}`}
-            className="flex-1 text-xs px-3 py-2.5 bg-yellow-50 text-yellow-800 rounded-xl hover:bg-yellow-100 transition-colors font-medium flex items-center justify-center gap-1.5 border border-yellow-200"
-          >
-            <Navigation size={14} /> Яндекс
-          </a>
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`}
-            target="_blank" rel="noopener noreferrer"
-            className="flex-1 text-xs px-3 py-2.5 bg-green-50 text-green-800 rounded-xl hover:bg-green-100 transition-colors font-medium flex items-center justify-center gap-1.5 border border-green-200"
-          >
-            <Navigation size={14} /> Google
-          </a>
-        </div>
-
         <Link
           to={`/visits/new?point=${point.id}`}
           className="block py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm"
@@ -196,27 +179,10 @@ export function PointDetailPage() {
               <Pencil size={14} /> Изменить
             </button>
             <button
-              onClick={() => updateStatus.mutate({ id: point.id, status: 'working' })}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                point.status === 'working' ? 'bg-green-100 border-green-400 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Работает
-            </button>
-            <button
-              onClick={() => updateStatus.mutate({ id: point.id, status: 'not_working' })}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
-                point.status === 'not_working' ? 'bg-red-100 border-red-400 text-red-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Не раб.
-            </button>
-            <button
               onClick={handleDelete}
-              className="px-3 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-              title="Удалить"
+              className="px-4 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
             >
-              <Trash2 size={14} />
+              <Trash2 size={14} /> Удалить
             </button>
           </div>
         )}
