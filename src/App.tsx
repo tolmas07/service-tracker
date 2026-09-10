@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Analytics } from '@vercel/analytics/react';
 import { useAuthStore } from './stores/authStore';
 import { useVersionCheck } from './hooks/useVersionCheck';
 import { UpdateDialog } from './components/Layout/UpdateDialog';
@@ -163,6 +164,7 @@ function App() {
             }
           />
         </Routes>
+        <Analytics />
       </BrowserRouter>
     </QueryClientProvider>
   );
