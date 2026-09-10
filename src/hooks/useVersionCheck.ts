@@ -46,9 +46,23 @@ export function useVersionCheck(): VersionCheckResult {
 
   const checkVersion = useCallback(async () => {
     try {
-      const res = await fetch('/version.json', { cache: 'no-store' });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const res = await fetch(`/version.json?t=${Date.now()}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
       if (!res.ok) return;
       const info: VersionInfo = await res.json();
+
+      // Не показываем диалог если нет ссылки на APK
+      if (!info.apkUrl || info.apkUrl.includes('your-org')) {
+        setResult(prev => ({ ...prev, checking: false }));
+        return;
+      }
 
       const needsUpdate = isNewerVersion(APP_VERSION, info.version);
       const force = info.forceUpdate || isNewerVersion(APP_VERSION, info.minVersion);
@@ -63,12 +77,16 @@ export function useVersionCheck(): VersionCheckResult {
         checking: false,
       }));
     } catch {
+      // Тихо игнорируем — сеть недоступна или файл не найден
       setResult(prev => ({ ...prev, checking: false }));
     }
   }, []);
 
   useEffect(() => {
+    // Проверяем версию при запуске и затем каждые 30 минут
     checkVersion();
+    const interval = setInterval(checkVersion, 30 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [checkVersion]);
 
   return result;

@@ -1,0 +1,107 @@
+name: Автоматический релиз
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Настройка Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Бамп версии
+        id: bump
+        run: node scripts/bump-version.mjs
+
+      - name: Проверка — был ли бамп версии
+        id: check
+        run: |
+          git diff --quiet package.json && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Настройка Java
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Настройка Android SDK
+        if: steps.check.outputs.changed == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Сборка веб-приложения
+        if: steps.check.outputs.changed == 'true'
+        run: npm run build
+
+      - name: Синхронизация Capacitor
+        if: steps.check.outputs.changed == 'true'
+        run: npx cap sync android
+
+      - name: Сборка Android APK
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Коммит новой версии
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src/lib/constants.ts android/app/build.gradle public/version.json
+          git commit -m "Релиз v${{ steps.bump.outputs.version }}"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin master --tags
+
+      - name: Создание релиза и загрузка APK
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.bump.outputs.version }}" \
+            android/app/build/outputs/apk/debug/app-debug.apk#UzmulkTracker.apk \
+            --title "UzmulkTracker v${{ steps.bump.outputs.version }}" \
+            --generate-notes
+
+      - name: Обновление version.json с ссылкой на APK
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          APK_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/UzmulkTracker.apk"
+          
+          # Обновляем version.json с реальной ссылкой
+          node -e "
+            const fs = require('fs');
+            const v = JSON.parse(fs.readFileSync('public/version.json', 'utf-8'));
+            v.apkUrl = '${APK_URL}';
+            fs.writeFileSync('public/version.json', JSON.stringify(v, null, 2) + '\n');
+          "
+          
+          git add public/version.json
+          git commit -m "Обновление ссылки на APK v${VERSION}" || true
+          git push origin master
+
+      - name: Уведомление об успехе
+        if: steps.check.outputs.changed == 'true'
+        run: echo "Релиз v${{ steps.bump.outputs.version }} создан! APK загружен в GitHub Releases."
