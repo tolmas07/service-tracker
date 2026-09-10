@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X } from 'lucide-react';
+import { APP_VERSION } from '../../lib/constants';
 
 const workerLinks = [
   { to: '/', icon: Map, label: 'Карта' },
@@ -179,6 +180,9 @@ export function Header() {
                       <LogOut size={16} />
                       Выйти
                     </button>
+                    <div className="px-3 py-1.5 border-t border-gray-100">
+                      <p className="text-[10px] text-gray-400 text-center">Версия {APP_VERSION}</p>
+                    </div>
                   </div>
                 </>
               )}
