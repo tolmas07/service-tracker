@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useGpsStore } from '../../stores/gpsStore';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { supabase } from '../../lib/supabase';
+import { saveActiveTrip, clearActiveTrip } from '../../lib/idb';
 import { formatDistance, formatDuration, formatSpeed } from '../../lib/geo';
 import { Play, Square, AlertTriangle, Smartphone, Shield, Zap } from 'lucide-react';
 
@@ -37,16 +38,24 @@ export function TripPage() {
   const handleStop = useCallback(async () => {
     stopTracking();
     if (currentTripId) {
-      await supabase
-        .from('trips')
-        .update({
-          status: 'completed',
-          ended_at: new Date().toISOString(),
-          total_distance_m: stats.distanceM,
-          total_duration_s: elapsedS,
-          compensation_uzs: stats.compensationUzs,
-        })
-        .eq('id', currentTripId);
+      // Save final state to IndexedDB
+      await clearActiveTrip();
+
+      // Try to sync to Supabase (works offline — will fail silently)
+      try {
+        await supabase
+          .from('trips')
+          .update({
+            status: 'completed',
+            ended_at: new Date().toISOString(),
+            total_distance_m: stats.distanceM,
+            total_duration_s: elapsedS,
+            compensation_uzs: stats.compensationUzs,
+          })
+          .eq('id', currentTripId);
+      } catch {
+        // Offline — trip completion will sync when GPS buffer flushes
+      }
     }
   }, [stopTracking, currentTripId, stats, elapsedS]);
 
@@ -64,22 +73,30 @@ export function TripPage() {
       } catch {}
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    // Generate trip ID locally — works offline!
+    const localTripId = crypto.randomUUID();
 
-    const { data, error } = await supabase
-      .from('trips')
-      .insert({
-        worker_id: session.user.id,
-        status: 'active',
-        started_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // Start GPS tracking immediately — no network needed
+    startTracking(localTripId);
 
-    if (!error && data) {
-      startTracking(data.id);
-    }
+    // Save trip state to IndexedDB (survives app crash/reload)
+    await saveActiveTrip(localTripId, Date.now(), 0);
+
+    // Try to create trip in Supabase in the background (non-blocking)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        supabase.from('trips').insert({
+          id: localTripId,
+          worker_id: session.user.id,
+          status: 'active',
+          started_at: new Date().toISOString(),
+        }).then(({ error }) => {
+          if (error) {
+            console.warn('Trip sync deferred (offline?):', error.message);
+          }
+        });
+      }
+    });
   }, [startTracking]);
 
   // Wake lock

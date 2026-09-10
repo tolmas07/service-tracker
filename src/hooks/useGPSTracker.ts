@@ -64,6 +64,26 @@ export function useGPSTracker() {
 
     // Try to sync to Supabase
     try {
+      // Ensure trip exists in Supabase (may not if started offline)
+      const { data: existingTrip } = await supabase
+        .from('trips')
+        .select('id')
+        .eq('id', currentTripId)
+        .single();
+
+      if (!existingTrip) {
+        // Trip doesn't exist in Supabase — create it now
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.from('trips').insert({
+            id: currentTripId,
+            worker_id: session.user.id,
+            status: 'active',
+            started_at: new Date().toISOString(),
+          });
+        }
+      }
+
       const { error } = await supabase.from('trip_points').insert(
         batch.map((p) => ({
           trip_id: currentTripId,

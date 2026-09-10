@@ -16,7 +16,16 @@ import { ManagerDashboard } from './components/Layout/ManagerDashboard';
 import { ManualTripForm } from './components/Tracker/ManualTripForm';
 import { useSearchParams } from 'react-router-dom';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,          // 30 секунд — не перезапрашивать при каждом рендере
+      gcTime: 5 * 60_000,         // 5 минут хранить в кэше
+      retry: 2,                    // 2 попытки при ошибке
+      refetchOnWindowFocus: false, // Не перезапрашивать при фокусе окна
+    },
+  },
+});
 
 function VisitFormPage() {
   const [searchParams] = useSearchParams();

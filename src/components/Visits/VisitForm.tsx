@@ -3,11 +3,34 @@ import { useCreateVisit, useUploadPhoto, useVisitPhotos } from '../../hooks/useV
 import { usePoints } from '../../hooks/usePoints';
 import { useAuthStore } from '../../stores/authStore';
 import { WORK_TYPES, VISIT_STATUSES } from '../../types';
-import type { Visit } from '../../types';
+import type { Visit, Point } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { Camera, X, ArrowLeft, Check, Trash2 } from 'lucide-react';
+import { Camera, X, ArrowLeft, Check, Trash2, MapPin } from 'lucide-react';
+import { MapPointPicker } from '../Map/MapPointPicker';
+
+function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl); // Cleanup memory leak
+  }, [file]);
+
+  return (
+    <div className="relative">
+      <img src={url} alt="" className="w-20 h-20 object-cover rounded-xl border border-gray-200" loading="lazy" />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow active:scale-90 transition-transform"
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
 
 interface VisitFormProps {
   pointId?: string;
@@ -52,16 +75,17 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
   return (
     <div className="flex gap-2 flex-wrap">
       {photos.map((photo) => (
-        <div key={photo.id} className="relative group">
+        <div key={photo.id} className="relative">
           <img
             src={urls[photo.id]}
             alt={photo.caption || ''}
             className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+            loading="lazy"
           />
           <button
             type="button"
             onClick={() => handleDelete(photo.id, photo.storage_path)}
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-lg active:scale-90 transition-transform"
           >
             <Trash2 size={10} />
           </button>
@@ -85,6 +109,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
   const isEdit = !!initialData;
 
   const [pointId, setPointId] = useState(initialData?.point_id || initialPointId || '');
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     initialData?.work_type ? initialData.work_type.split(',').map(s => s.trim()) : []
   );
@@ -188,21 +213,50 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
       <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Scrollable Fields */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          {/* Point selector — editable in both modes */}
+          {/* Point selector — map-based picker */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Точка обслуживания *</label>
-            <select
-              value={pointId}
-              onChange={(e) => setPointId(e.target.value)}
-              required
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            <button
+              type="button"
+              onClick={() => setShowMapPicker(true)}
+              className={`w-full px-3 py-2.5 border rounded-xl text-sm text-left flex items-center gap-2 transition-colors ${
+                pointId
+                  ? 'border-blue-300 bg-blue-50 text-blue-800'
+                  : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
+              }`}
             >
-              <option value="">Выберите точку</option>
-              {points.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}{p.address ? ` — ${p.address}` : ''}</option>
-              ))}
-            </select>
+              <MapPin size={16} className={pointId ? 'text-blue-500' : 'text-gray-400'} />
+              <span className="truncate flex-1">
+                {pointId
+                  ? points.find(p => p.id === pointId)
+                    ? `${points.find(p => p.id === pointId)!.name}${points.find(p => p.id === pointId)!.address ? ` — ${points.find(p => p.id === pointId)!.address}` : ''}`
+                    : 'Выбранная точка'
+                  : 'Нажмите чтобы выбрать точку на карте'
+                }
+              </span>
+            </button>
+            {pointId && (
+              <button
+                type="button"
+                onClick={() => setPointId('')}
+                className="text-xs text-gray-400 hover:text-red-500 mt-1 transition-colors"
+              >
+                Очистить выбор
+              </button>
+            )}
           </div>
+
+          {/* Map Point Picker Modal */}
+          {showMapPicker && (
+            <MapPointPicker
+              onSelect={(point: Point) => {
+                setPointId(point.id);
+                setShowMapPicker(false);
+              }}
+              onClose={() => setShowMapPicker(false)}
+              selectedPointId={pointId}
+            />
+          )}
 
           {/* Work types — multi-select */}
           <div>
@@ -309,20 +363,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
             {files.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {files.map((file, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt=""
-                      className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
+                  <FilePreview key={i} file={file} onRemove={() => removeFile(i)} />
                 ))}
               </div>
             )}

@@ -33,6 +33,7 @@ function VisitPhotos({ visitId }: { visitId: string }) {
           key={photo.id}
           src={urls[photo.id]}
           alt={photo.caption || ''}
+          loading="lazy"
           className="w-20 h-20 object-cover rounded-xl border border-gray-200 flex-shrink-0"
         />
       ))}

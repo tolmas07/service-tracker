@@ -44,15 +44,22 @@ export const useGpsStore = create<GPSState>((set, get) => ({
 
   addPosition: (pos: GPSPosition) => {
     const state = get();
-    const lastPos = state.positions[state.positions.length - 1];
+    const lastPos = state.positions.length > 0 ? state.positions[state.positions.length - 1] : null;
     let addedDist = 0;
 
     if (lastPos) {
       addedDist = haversine(lastPos, pos);
     }
 
+    // Mutate the array in place instead of copying — much faster for high-frequency GPS updates
+    const positions = state.positions;
+    if (positions.length >= 500) {
+      positions.shift();
+    }
+    positions.push(pos);
+
     set({
-      positions: [...state.positions.slice(-499), pos], // keep last 500
+      positions, // same reference, no copy
       totalDistanceM: state.totalDistanceM + addedDist,
     });
   },
