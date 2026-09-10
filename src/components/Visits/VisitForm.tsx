@@ -49,6 +49,7 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
   const { data: photos = [] } = useVisitPhotos(visitId);
   const queryClient = useQueryClient();
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -63,11 +64,29 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
   }, [photos]);
 
   const handleDelete = async (photoId: string, storagePath: string) => {
-    if (!confirm('Удалить фото?')) return;
-    await supabase.storage.from('photos').remove([storagePath]);
-    await supabase.from('photos').delete().eq('id', photoId);
-    queryClient.invalidateQueries({ queryKey: ['photos', visitId] });
-    onDelete();
+    if (deletingId) return; // Prevent double-tap
+    setDeletingId(photoId);
+    try {
+      // 1. Delete from storage (ignore error if file doesn't exist)
+      await supabase.storage.from('photos').remove([storagePath]).catch(() => {});
+
+      // 2. Delete from database
+      const { error } = await supabase.from('photos').delete().eq('id', photoId);
+      if (error) {
+        alert(`Ошибка удаления: ${error.message}`);
+        setDeletingId(null);
+        return;
+      }
+
+      // 3. Refresh
+      queryClient.invalidateQueries({ queryKey: ['photos', visitId] });
+      onDelete();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      alert(`Ошибка: ${msg}`);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   if (photos.length === 0) return null;
@@ -85,9 +104,14 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
           <button
             type="button"
             onClick={() => handleDelete(photo.id, photo.storage_path)}
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-lg active:scale-90 transition-transform"
+            disabled={deletingId === photo.id}
+            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg active:scale-90 transition-transform disabled:opacity-50"
           >
-            <Trash2 size={10} />
+            {deletingId === photo.id ? (
+              <span className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+            ) : (
+              <Trash2 size={10} />
+            )}
           </button>
           {photo.caption && (
             <p className="text-[9px] text-gray-400 text-center mt-0.5 truncate w-20">{photo.caption}</p>
