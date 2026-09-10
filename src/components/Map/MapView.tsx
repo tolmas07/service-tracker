@@ -5,7 +5,7 @@ import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDel
 import { useAuthStore } from '../../stores/authStore';
 import type { Point, PointStatus } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Locate, Pencil, Trash2, Navigation } from 'lucide-react';
+import { Plus, X, Locate, Pencil, Trash2, Navigation, Check } from 'lucide-react';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -236,15 +236,37 @@ export function MapView() {
                   <>
                     <div className="flex gap-1.5 mt-3">
                       <button
-                        onClick={() => updateStatus.mutate({ id: point.id, status: 'working' })}
-                        className="flex-1 text-xs px-2 py-1.5 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors font-medium"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          updateStatus.mutate({ id: point.id, status: 'working' });
+                        }}
+                        disabled={updateStatus.isPending}
+                        className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          point.status === 'working'
+                            ? 'bg-green-600 text-white shadow-sm ring-2 ring-green-600 ring-offset-1 font-semibold'
+                            : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                        }`}
                       >
+                        {point.status === 'working' && <Check size={12} strokeWidth={3} />}
                         Работает
                       </button>
                       <button
-                        onClick={() => updateStatus.mutate({ id: point.id, status: 'not_working' })}
-                        className="flex-1 text-xs px-2 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          updateStatus.mutate({ id: point.id, status: 'not_working' });
+                        }}
+                        disabled={updateStatus.isPending}
+                        className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          point.status === 'not_working'
+                            ? 'bg-red-600 text-white shadow-sm ring-2 ring-red-600 ring-offset-1 font-semibold'
+                            : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                        }`}
                       >
+                        {point.status === 'not_working' && <Check size={12} strokeWidth={3} />}
                         Не работает
                       </button>
                     </div>

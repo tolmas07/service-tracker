@@ -39,9 +39,9 @@ function WorkerOnlyRoute({ children }: { children: React.ReactNode }) {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <Header />
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden relative">{children}</main>
       <BottomNav />
     </div>
   );

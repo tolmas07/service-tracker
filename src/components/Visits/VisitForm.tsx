@@ -174,7 +174,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
   };
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col">
+    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg">
@@ -185,154 +185,157 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Point selector — editable in both modes */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Точка обслуживания *</label>
-          <select
-            value={pointId}
-            onChange={(e) => setPointId(e.target.value)}
-            required
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-          >
-            <option value="">Выберите точку</option>
-            {points.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}{p.address ? ` — ${p.address}` : ''}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Work types — multi-select */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">
-            Тип работы * <span className="text-gray-400">(можно несколько)</span>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {WORK_TYPES.map((wt) => {
-              const selected = selectedTypes.includes(wt);
-              return (
-                <button
-                  key={wt}
-                  type="button"
-                  onClick={() => toggleType(wt)}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
-                    selected
-                      ? 'bg-blue-50 border-blue-500 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {selected && <Check size={14} />}
-                  {wt}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Описание работ</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            placeholder="Что было сделано..."
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          />
-        </div>
-
-        {/* Status after */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Статус после работ</label>
-          <div className="grid grid-cols-2 gap-2">
-            {VISIT_STATUSES.map((s) => {
-              const active = statusAfter === s.value;
-              return (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setStatusAfter(active ? '' : s.value)}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
-                    active ? statusColors[s.value] : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {active && <Check size={14} />}
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Заметки</label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Дополнительные заметки"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          />
-        </div>
-
-        {/* Photos — always visible */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1.5">Фотографии</label>
-
-          {/* Existing photos (edit mode) */}
-          {isEdit && initialData?.id && (
-            <div className="mb-3" key={photoRefreshKey}>
-              <p className="text-[11px] text-gray-400 mb-1.5">Загруженные фото (нажмите ✕ чтобы удалить):</p>
-              <ExistingPhotos
-                visitId={initialData.id}
-                onDelete={() => setPhotoRefreshKey(k => k + 1)}
-              />
-            </div>
-          )}
-
-          {/* New photo upload */}
-          <label className="flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 text-sm text-gray-500 transition-colors">
-            <Camera size={20} />
-            <span>{isEdit ? 'Добавить ещё фото' : 'Сделать фото или выбрать из галереи'}</span>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </label>
-
-          {files.length > 0 && (
-            <div className="flex gap-2 mt-3 flex-wrap">
-              {files.map((file, i) => (
-                <div key={i} className="relative group">
-                  <img
-                    src={URL.createObjectURL(file)}
-                    alt=""
-                    className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
+      <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {/* Scrollable Fields */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          {/* Point selector — editable in both modes */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Точка обслуживания *</label>
+            <select
+              value={pointId}
+              onChange={(e) => setPointId(e.target.value)}
+              required
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+            >
+              <option value="">Выберите точку</option>
+              {points.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}{p.address ? ` — ${p.address}` : ''}</option>
               ))}
+            </select>
+          </div>
+
+          {/* Work types — multi-select */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              Тип работы * <span className="text-gray-400">(можно несколько)</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {WORK_TYPES.map((wt) => {
+                const selected = selectedTypes.includes(wt);
+                return (
+                  <button
+                    key={wt}
+                    type="button"
+                    onClick={() => toggleType(wt)}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                      selected
+                        ? 'bg-blue-50 border-blue-500 text-blue-700'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {selected && <Check size={14} />}
+                    {wt}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Описание работ</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Что было сделано..."
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+
+          {/* Status after */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Статус после работ</label>
+            <div className="grid grid-cols-2 gap-2">
+              {VISIT_STATUSES.map((s) => {
+                const active = statusAfter === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setStatusAfter(active ? '' : s.value)}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                      active ? statusColors[s.value] : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {active && <Check size={14} />}
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Заметки</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Дополнительные заметки"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+
+          {/* Photos — always visible */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Фотографии</label>
+
+            {/* Existing photos (edit mode) */}
+            {isEdit && initialData?.id && (
+              <div className="mb-3" key={photoRefreshKey}>
+                <p className="text-[11px] text-gray-400 mb-1.5">Загруженные фото (нажмите ✕ чтобы удалить):</p>
+                <ExistingPhotos
+                  visitId={initialData.id}
+                  onDelete={() => setPhotoRefreshKey(k => k + 1)}
+                />
+              </div>
+            )}
+
+            {/* New photo upload */}
+            <label className="flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 text-sm text-gray-500 transition-colors">
+              <Camera size={20} />
+              <span>{isEdit ? 'Добавить ещё фото' : 'Сделать фото или выбрать из галереи'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </label>
+
+            {files.length > 0 && (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {files.map((file, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt=""
+                      className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Submit */}
-        <div className="bg-gray-50 pt-3 pb-8">
+        {/* Submit — docked at bottom */}
+        <div className="p-3 bg-white border-t border-gray-200 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
           <button
             type="submit"
             disabled={submitting || !pointId || selectedTypes.length === 0}
-            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
           >
             {submitting ? 'Сохранение...' : isEdit ? 'Сохранить изменения' : 'Сохранить отчёт'}
           </button>

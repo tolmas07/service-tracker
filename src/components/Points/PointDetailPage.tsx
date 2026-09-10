@@ -146,7 +146,7 @@ export function PointDetailPage() {
   }
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col">
+    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header — always shows info, never changes */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-blue-600 mb-2 hover:text-blue-700">
@@ -189,7 +189,7 @@ export function PointDetailPage() {
       </div>
 
       {/* Visit History */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
         <h3 className="font-bold text-sm text-gray-700 mb-3">История посещений</h3>
         {visitsLoading ? (
           <p className="text-gray-400 text-sm text-center py-8">Загрузка...</p>

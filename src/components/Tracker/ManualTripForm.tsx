@@ -73,7 +73,7 @@ export function ManualTripForm() {
   ];
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col">
+    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg">
@@ -82,7 +82,8 @@ export function ManualTripForm() {
         <h2 className="text-lg font-bold text-gray-900">Добавить пробег вручную</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Scrollable Fields */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         {/* Date */}
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">Дата</label>
@@ -216,17 +217,17 @@ export function ManualTripForm() {
             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
+      </div>
 
-        {/* Save */}
-        <div className="sticky bottom-0 bg-gray-50 pt-3 pb-4">
-          <button
-            onClick={handleSave}
-            disabled={saving || !distanceKm}
-            className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            {saving ? 'Сохранение...' : 'Сохранить поездку'}
-          </button>
-        </div>
+      {/* Save — docked at bottom */}
+      <div className="p-3 bg-white border-t border-gray-200 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <button
+          onClick={handleSave}
+          disabled={saving || !distanceKm}
+          className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          {saving ? 'Сохранение...' : 'Сохранить поездку'}
+        </button>
       </div>
     </div>
   );

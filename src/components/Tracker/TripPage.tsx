@@ -94,76 +94,76 @@ export function TripPage() {
   }, [isTracking]);
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
-      {/* Live Stats */}
-      {isTracking && (
-        <div className="bg-white border-b border-gray-100 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse-gps"></span>
-            <span className="text-sm font-medium text-green-700">GPS активен</span>
-            <span className="text-xs text-gray-400 ml-auto">
-              Точность: {currentPosition?.accuracy?.toFixed(0) ?? '—'}м · Точек: {positions.length}
-            </span>
+    <div className="flex-1 min-h-0 flex flex-col bg-gray-50 overflow-hidden">
+      {/* Scrollable Content */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Live Stats */}
+        {isTracking && (
+          <div className="bg-white border-b border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse-gps"></span>
+              <span className="text-sm font-medium text-green-700">GPS активен</span>
+              <span className="text-xs text-gray-400 ml-auto">
+                Точность: {currentPosition?.accuracy?.toFixed(0) ?? '—'}м · Точек: {positions.length}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 bg-blue-50 rounded-xl">
+                <div className="text-2xl font-bold text-blue-700">{formatDistance(stats.distanceM)}</div>
+                <div className="text-[11px] text-blue-500 font-medium mt-0.5">Расстояние</div>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-xl">
+                <div className="text-2xl font-bold text-gray-800">{formatDuration(elapsedS)}</div>
+                <div className="text-[11px] text-gray-500 font-medium mt-0.5">Время</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-xl">
+                <div className="text-2xl font-bold text-green-700">{stats.compensationUzs.toLocaleString()}</div>
+                <div className="text-[11px] text-green-600 font-medium mt-0.5">Сум</div>
+              </div>
+            </div>
+            {currentPosition && (
+              <div className="mt-2 text-[11px] text-gray-400 text-center">
+                {currentPosition.lat.toFixed(6)}, {currentPosition.lng.toFixed(6)} · {formatSpeed(currentPosition.speed)}
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center p-3 bg-blue-50 rounded-xl">
-              <div className="text-2xl font-bold text-blue-700">{formatDistance(stats.distanceM)}</div>
-              <div className="text-[11px] text-blue-500 font-medium mt-0.5">Расстояние</div>
-            </div>
-            <div className="text-center p-3 bg-gray-50 rounded-xl">
-              <div className="text-2xl font-bold text-gray-800">{formatDuration(elapsedS)}</div>
-              <div className="text-[11px] text-gray-500 font-medium mt-0.5">Время</div>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-xl">
-              <div className="text-2xl font-bold text-green-700">{stats.compensationUzs.toLocaleString()}</div>
-              <div className="text-[11px] text-green-600 font-medium mt-0.5">Сум</div>
-            </div>
-          </div>
-          {currentPosition && (
-            <div className="mt-2 text-[11px] text-gray-400 text-center">
-              {currentPosition.lat.toFixed(6)}, {currentPosition.lng.toFixed(6)} · {formatSpeed(currentPosition.speed)}
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      {/* Completed trip summary */}
-      {!isTracking && currentTripId && (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center w-full max-w-sm border border-gray-100">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield size={28} className="text-green-600" />
+        {/* Completed trip summary */}
+        {!isTracking && currentTripId && (
+          <div className="flex items-center justify-center p-6">
+            <div className="bg-white rounded-2xl shadow-lg p-8 text-center w-full max-w-sm border border-gray-100">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield size={28} className="text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Поездка завершена</h3>
+              <p className="text-sm text-gray-500 mb-6">Данные сохранены</p>
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="p-3 bg-blue-50 rounded-xl">
+                  <div className="text-lg font-bold text-blue-700">{formatDistance(stats.distanceM)}</div>
+                  <div className="text-[10px] text-blue-500">Путь</div>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl">
+                  <div className="text-lg font-bold text-gray-800">{formatDuration(elapsedS)}</div>
+                  <div className="text-[10px] text-gray-500">Время</div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-xl">
+                  <div className="text-lg font-bold text-green-700">{stats.compensationUzs.toLocaleString()}</div>
+                  <div className="text-[10px] text-green-600">Сум</div>
+                </div>
+              </div>
+              <button
+                onClick={() => reset()}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              >
+                Новая поездка
+              </button>
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">Поездка завершена</h3>
-            <p className="text-sm text-gray-500 mb-6">Данные сохранены</p>
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="p-3 bg-blue-50 rounded-xl">
-                <div className="text-lg font-bold text-blue-700">{formatDistance(stats.distanceM)}</div>
-                <div className="text-[10px] text-blue-500">Путь</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-xl">
-                <div className="text-lg font-bold text-gray-800">{formatDuration(elapsedS)}</div>
-                <div className="text-[10px] text-gray-500">Время</div>
-              </div>
-              <div className="p-3 bg-green-50 rounded-xl">
-                <div className="text-lg font-bold text-green-700">{stats.compensationUzs.toLocaleString()}</div>
-                <div className="text-[10px] text-green-600">Сум</div>
-              </div>
-            </div>
-            <button
-              onClick={() => reset()}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
-            >
-              Новая поездка
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Idle state */}
-      {!isTracking && !currentTripId && (
-        <div className="flex-1 flex flex-col">
-          {/* Info cards */}
+        {/* Idle state info cards */}
+        {!isTracking && !currentTripId && (
           <div className="p-4 space-y-3">
             <div className="bg-white rounded-xl p-4 border border-gray-100">
               <div className="flex items-start gap-3">
@@ -227,15 +227,15 @@ export function TripPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Control Button */}
-      <div className="p-4 bg-white border-t border-gray-100 shrink-0 space-y-2">
+      {/* Control Button — Fixed at bottom */}
+      <div className="p-3 bg-white border-t border-gray-200 shrink-0 space-y-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         {!isTracking && (
           <Link
             to="/trips/new"
-            className="block w-full py-3 border-2 border-blue-200 text-blue-600 rounded-xl text-center font-medium hover:bg-blue-50 transition-colors text-sm"
+            className="block w-full py-2.5 border-2 border-blue-200 text-blue-600 rounded-xl text-center font-medium hover:bg-blue-50 transition-colors text-sm"
           >
             + Добавить пробег вручную
           </Link>
@@ -243,16 +243,16 @@ export function TripPage() {
         {!isTracking ? (
           <button
             onClick={handleStart}
-            className="w-full py-4 bg-green-600 text-white rounded-2xl text-lg font-bold flex items-center justify-center gap-3 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-600/20"
+            className="w-full py-3.5 bg-green-600 text-white rounded-2xl text-lg font-bold flex items-center justify-center gap-3 hover:bg-green-700 active:scale-[0.98] transition-all shadow-lg shadow-green-600/20"
           >
-            <Play size={24} fill="white" /> СТАРТ
+            <Play size={22} fill="white" /> СТАРТ
           </button>
         ) : (
           <button
             onClick={handleStop}
-            className="w-full py-4 bg-red-600 text-white rounded-2xl text-lg font-bold flex items-center justify-center gap-3 hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg shadow-red-600/20"
+            className="w-full py-3.5 bg-red-600 text-white rounded-2xl text-lg font-bold flex items-center justify-center gap-3 hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg shadow-red-600/20"
           >
-            <Square size={24} fill="white" /> СТОП
+            <Square size={22} fill="white" /> СТОП
           </button>
         )}
       </div>

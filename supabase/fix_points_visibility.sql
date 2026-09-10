@@ -22,15 +22,22 @@ CREATE POLICY "Points: worker insert" ON points FOR INSERT
     AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'worker')
   );
 
--- Worker редактирует только свои точки
-CREATE POLICY "Points: worker update own" ON points FOR UPDATE
+-- Worker редактирует точки и статусы
+CREATE POLICY "Points: workers update" ON points FOR UPDATE
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'worker')
+  );
+
+-- Worker удаляет только свои точки
+CREATE POLICY "Points: worker delete own" ON points FOR DELETE
   USING (
     worker_id = auth.uid()
     AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'worker')
   );
 
--- Worker удаляет только свои точки
-CREATE POLICY "Points: worker delete own" ON points FOR DELETE
+-- Worker удаляет свои поездки
+DROP POLICY IF EXISTS "Trips: worker delete own" ON trips;
+CREATE POLICY "Trips: worker delete own" ON trips FOR DELETE
   USING (
     worker_id = auth.uid()
     AND EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'worker')

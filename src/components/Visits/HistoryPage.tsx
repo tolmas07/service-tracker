@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Wrench, MapPin, Route, ChevronDown, ChevronUp, Ruler, Pencil, Check, X, Wallet } from 'lucide-react';
+import { Calendar, Wrench, MapPin, Route, ChevronDown, ChevronUp, Ruler, Pencil, Check, Wallet, Trash2 } from 'lucide-react';
 import { MapContainer, TileLayer, Polyline, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import type { Visit, Trip, TripPoint } from '../../types';
@@ -98,6 +98,7 @@ function TripsTab() {
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editKm, setEditKm] = useState('');
+  const [editDate, setEditDate] = useState('');
 
   const { data: trips = [], isLoading } = useQuery({
     queryKey: ['trips'],
@@ -116,26 +117,65 @@ function TripsTab() {
   const startEdit = (trip: Trip) => {
     setEditingId(trip.id);
     setEditKm((trip.total_distance_m / 1000).toFixed(1));
+    const d = trip.started_at ? new Date(trip.started_at) : new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setEditDate(`${year}-${month}-${day}`);
   };
 
-  const saveEdit = async (tripId: string) => {
+  const saveEdit = async (trip: Trip) => {
     const km = parseFloat(editKm);
     if (isNaN(km) || km < 0) return;
     const distM = km * 1000;
     const compensation = Math.round(km * COST_PER_KM);
-    await supabase
+
+    let startedAt = trip.started_at;
+    if (editDate) {
+      const existingTime = trip.started_at ? trip.started_at.split('T')[1] : '08:00:00.000Z';
+      startedAt = `${editDate}T${existingTime || '08:00:00.000Z'}`;
+    }
+
+    const { error } = await supabase
       .from('trips')
       .update({
+        started_at: startedAt,
         total_distance_m: distM,
         compensation_uzs: compensation,
       })
-      .eq('id', tripId);
+      .eq('id', trip.id);
+
+    if (error) {
+      alert(`Ошибка при сохранении: ${error.message}`);
+      return;
+    }
+
     setEditingId(null);
     queryClient.invalidateQueries({ queryKey: ['trips'] });
   };
 
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту поездку?')) return;
+    try {
+      const { error } = await supabase.from('trips').delete().eq('id', tripId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['trips'] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Не удалось удалить поездку: ${msg}`);
+    }
+  };
+
   return (
-    <div className="p-3 space-y-2">
+    <div className="p-3 space-y-3">
+      {/* Button to add trip manually */}
+      <Link
+        to="/trips/new"
+        className="block w-full py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm text-sm"
+      >
+        + Добавить поездку вручную
+      </Link>
+
       {/* Total compensation summary */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 text-white shadow-md">
         <div className="flex items-center gap-2 mb-2">
@@ -164,63 +204,95 @@ function TripsTab() {
             <div key={trip.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Route size={14} className="text-blue-600" />
-                      <span className="text-sm font-medium text-gray-900">
+                      <Route size={14} className="text-blue-600 shrink-0" />
+                      <span className="text-sm font-medium text-gray-900 truncate">
                         {format(new Date(trip.started_at), 'dd MMMM yyyy', { locale: ru })}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-500">
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            value={editKm}
-                            onChange={(e) => setEditKm(e.target.value)}
-                            step="0.1"
-                            min="0"
-                            className="w-20 px-2 py-1 border border-blue-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 outline-none"
-                            autoFocus
-                          />
-                          <span className="text-gray-500">км</span>
-                          <button
-                            onClick={() => saveEdit(trip.id)}
-                            className="p-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
-                          >
-                            <Check size={14} />
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="p-1 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="flex items-center gap-1 font-medium text-blue-600">
-                            <Ruler size={12} /> {km} км
-                          </span>
-                          <span className="text-green-600 font-medium">{trip.compensation_uzs?.toLocaleString()} сум</span>
-                          <button
-                            onClick={() => startEdit(trip)}
-                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Изменить пробег"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        </>
-                      )}
+                      <span className="flex items-center gap-1 font-medium text-blue-600">
+                        <Ruler size={12} /> {km} км
+                      </span>
+                      <span className="text-green-600 font-medium">{trip.compensation_uzs?.toLocaleString()} сум</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
-                    className="p-1 text-gray-400 hover:bg-gray-100 rounded-lg ml-2"
-                  >
-                    {expandedTrip === trip.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <button
+                      onClick={() => (isEditing ? setEditingId(null) : startEdit(trip))}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isEditing ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                      }`}
+                      title="Редактировать поездку"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTrip(trip.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Удалить поездку"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                    <button
+                      onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
+                      className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"
+                      title="Маршрут на карте"
+                    >
+                      {expandedTrip === trip.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Edit Form */}
+                {isEditing && (
+                  <div className="mt-3 p-3 bg-blue-50/70 rounded-xl border border-blue-200 space-y-2.5">
+                    <div className="text-xs font-semibold text-blue-900">Редактирование поездки</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Дата поездки</label>
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-gray-600 mb-1">Пробег (км)</label>
+                        <input
+                          type="number"
+                          value={editKm}
+                          onChange={(e) => setEditKm(e.target.value)}
+                          step="0.1"
+                          min="0"
+                          className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    {editKm && !isNaN(parseFloat(editKm)) && (
+                      <div className="text-[11px] text-green-700 font-medium">
+                        Компенсация: {(Math.round(parseFloat(editKm) * COST_PER_KM)).toLocaleString()} сум
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => saveEdit(trip)}
+                        className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 flex items-center justify-center gap-1.5 shadow-sm"
+                      >
+                        <Check size={14} /> Сохранить
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-50"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {expandedTrip === trip.id && (
                   <div className="mt-3">
@@ -271,9 +343,9 @@ export function HistoryPage() {
     : visits;
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col">
+    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 flex">
+      <div className="bg-white border-b border-gray-200 flex shrink-0">
         <button
           onClick={() => setActiveTab('visits')}
           className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -293,7 +365,7 @@ export function HistoryPage() {
       </div>
 
       {activeTab === 'visits' && (
-        <div className="p-3 bg-white border-b border-gray-100">
+        <div className="p-3 bg-white border-b border-gray-100 shrink-0">
           <input
             type="text"
             placeholder="Поиск по точке, типу работ..."
@@ -304,7 +376,7 @@ export function HistoryPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'visits' && (
           <>
             <div className="p-3">

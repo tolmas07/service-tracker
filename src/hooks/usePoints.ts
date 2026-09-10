@@ -77,12 +77,36 @@ export function useUpdatePointStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: PointStatus }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('points')
         .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          'Не удалось обновить статус точки: нет прав доступа в Supabase RLS. Выполните скрипт migration_fix_trips_and_points_rls.sql в Supabase SQL Editor.'
+        );
+      }
+      return data[0] as Point;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['points'] }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['points'] });
+      const previousPoints = queryClient.getQueryData<Point[]>(['points']);
+      queryClient.setQueryData<Point[]>(['points'], (old) =>
+        old ? old.map((p) => (p.id === id ? { ...p, status } : p)) : []
+      );
+      return { previousPoints };
+    },
+    onError: (err: unknown, _variables, context) => {
+      if (context?.previousPoints) {
+        queryClient.setQueryData(['points'], context.previousPoints);
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['points'] });
+    },
   });
 }
