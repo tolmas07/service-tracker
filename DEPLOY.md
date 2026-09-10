@@ -159,6 +159,38 @@ service-tracker/
 
 ## Обновления
 
-После деплоя на Vercel, каждый `git push` автоматически обновит сайт.
+### Автоматический релиз (GitHub Actions)
+При каждом пуше на `master` GitHub Actions автоматически:
+1. Бампит версию (1.0.0 → 1.0.1 → 1.0.2...)
+2. Собирает Android APK
+3. Создаёт GitHub Release с APK
+4. Обновляет `version.json` со ссылкой на APK
+5. Vercel автоматически деплоит обновлённый сайт
+
+**Никаких ручных действий не требуется** — просто `git push`.
+
+### Как работает проверка обновлений на устройстве
+1. При запуске приложение загружает `/version.json` с сервера
+2. Сравнивает серверную версию с локальной (`src/lib/constants.ts`)
+3. Если версия новее — показывает диалог с кнопкой "Скачать обновление"
+4. Каждые 30 минут повторяет проверку
+5. Если `forceUpdate: true` в version.json — пользователь не может закрыть диалог
+
+### Принудительное обновление
+Чтобы заблокировать старые версии:
+1. Отредактируйте `public/version.json` → `"forceUpdate": true`
+2. Запушьте → GitHub Actions создаст новый релиз
+
+### Ручной бамп версии (если нужно)
+```bash
+node scripts/bump-version.mjs
+```
+Обновит версию в: `package.json`, `src/lib/constants.ts`, `android/app/build.gradle`, `public/version.json`
+
+### Сборка APK в Android Studio
+1. Откройте `android/` в Android Studio
+2. Sync Gradle
+3. Build → Build Bundle(s) / APK(s) → Build APK
+4. APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 
 Для изменений в базе данных — создавайте миграции в `supabase/migration_*.sql` и выполняйте в SQL Editor.
