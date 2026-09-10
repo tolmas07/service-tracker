@@ -13,6 +13,7 @@
 3. Скопируйте содержимое файла `supabase/schema.sql` → вставьте → **Run**
 4. Создайте ещё один query, выполните `supabase/migration_delete_points.sql`
 5. Создайте ещё один query, выполните `supabase/migration_status.sql`
+6. Создайте ещё один query, выполните `supabase/migration_fixes_performance.sql` — RLS для удаления фото + индексы
 
 ### 1.3 Получить ключи
 1. **Settings** (шестерёнка) → **API**
@@ -103,6 +104,11 @@ git push -u origin main
 1. Supabase → **Authentication** → **URL Configuration**
 2. Добавьте: `https://service-tracker-xxx.vercel.app`
 
+### 5.4 ОБЯЗАТЕЛЬНО: Отключить Vercel Deployment Protection
+1. Vercel → проект → **Settings** → **Deployment Protection**
+2. **Vercel Authentication** → переключите на **"Only Preview Deployments"** (или выключите)
+3. Без этого manifest.json, version.json и все запросы блокируются SSO авторизацией
+
 ---
 
 ## Шаг 6: Установка PWA на телефон
@@ -145,14 +151,26 @@ git push -u origin main
 ```
 service-tracker/
 ├── CLAUDE.md                        — Документация для ИИ-агентов
+├── DEPLOY.md                        — Руководство по развёртыванию
 ├── README.md                        — Основная документация
+├── .github/workflows/release.yml    — GitHub Actions: авто-релиз
+├── scripts/
+│   ├── bump-version.mjs             — Бамп версии
+│   └── parse_excel.py               — Импорт точек из Excel
 ├── supabase/
 │   ├── schema.sql                   — Основная схема БД
-│   ├── migration_delete_points.sql  — Миграция: каскадное удаление
-│   ├── migration_status.sql         — Миграция: статус "на ремонт"
+│   ├── migration_delete_points.sql  — Каскадное удаление + RLS
+│   ├── migration_status.sql         — Статус "на ремонт"
+│   ├── migration_fixes_performance.sql — RLS DELETE фото + индексы
 │   ├── seed_points.sql              — 44 точки из Excel
-│   └── create_test_manager.sql      — Тестовый аккаунт
-├── src/                             — Исходный код
+│   └── assign_points_to_me.sql      — Привязка точек к работнику
+├── public/
+│   ├── version.json                 — Версия + ссылка на APK
+│   └── manifest.json                — PWA манифест
+├── src/                             — Исходный код React
+├── android/                         — Capacitor Android проект
+├── capacitor.config.ts              — Конфигурация Capacitor
+├── vercel.json                      — Конфигурация Vercel (SPA rewrites + CORS)
 ├── .env                             — Переменные окружения (НЕ коммитить!)
 └── .gitignore
 ```
@@ -188,9 +206,12 @@ node scripts/bump-version.mjs
 Обновит версию в: `package.json`, `src/lib/constants.ts`, `android/app/build.gradle`, `public/version.json`
 
 ### Сборка APK в Android Studio
-1. Откройте `android/` в Android Studio
-2. Sync Gradle
-3. Build → Build Bundle(s) / APK(s) → Build APK
-4. APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+1. Сначала синхронизируйте web assets: `npx cap sync android`
+2. Откройте `android/` в Android Studio
+3. Sync Gradle
+4. Build → Build Bundle(s) / APK(s) → Build APK
+5. APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+**Важно:** после каждого изменения кода нужно делать `npx cap sync android` перед сборкой APK, иначе APK будет содержать старую версию сайта.
 
 Для изменений в базе данных — создавайте миграции в `supabase/migration_*.sql` и выполняйте в SQL Editor.
