@@ -217,7 +217,9 @@ export function MapView() {
                 {/* Navigation buttons */}
                 <div className="flex gap-1.5 mt-3">
                   <a
-                    href={`yandexmaps://build_route?to=${point.latitude},${point.longitude}`}
+                    href={`https://yandex.ru/maps/?rtext=~${point.latitude},${point.longitude}&rtt=auto`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex-1 text-xs px-2 py-2 bg-yellow-50 text-yellow-800 rounded-lg hover:bg-yellow-100 transition-colors font-medium flex items-center justify-center gap-1.5"
                   >
                     <Navigation size={14} /> Яндекс

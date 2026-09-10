@@ -300,7 +300,6 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 multiple
                 onChange={handleFileChange}
                 className="hidden"

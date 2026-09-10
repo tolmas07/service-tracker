@@ -433,10 +433,9 @@ export function HistoryPage() {
                         </div>
                         <button
                           onClick={() => navigate(`/visits/${visit.id}/edit`)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Редактировать"
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={12} /> Изменить
                         </button>
                       </div>
                     </div>
