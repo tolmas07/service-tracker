@@ -7,7 +7,7 @@ import type { Visit, Point } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { Camera, X, ArrowLeft, Check, Trash2, MapPin } from 'lucide-react';
+import { Camera, X, ArrowLeft, Check, MapPin } from 'lucide-react';
 import { MapPointPicker } from '../Map/MapPointPicker';
 
 function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
@@ -92,30 +92,37 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
   if (photos.length === 0) return null;
 
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex gap-3 flex-wrap">
       {photos.map((photo) => (
-        <div key={photo.id} className="relative">
-          <img
-            src={urls[photo.id]}
-            alt={photo.caption || ''}
-            className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-            loading="lazy"
-          />
+        <div key={photo.id} className="flex flex-col items-center gap-1">
+          <div className="relative">
+            <img
+              src={urls[photo.id]}
+              alt={photo.caption || ''}
+              className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+              loading="lazy"
+            />
+            <button
+              type="button"
+              onClick={() => handleDelete(photo.id, photo.storage_path)}
+              disabled={deletingId === photo.id}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-md active:scale-90 transition-transform disabled:opacity-50 border-2 border-white"
+            >
+              {deletingId === photo.id ? (
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <X size={13} strokeWidth={3} />
+              )}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => handleDelete(photo.id, photo.storage_path)}
             disabled={deletingId === photo.id}
-            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg active:scale-90 transition-transform disabled:opacity-50"
+            className="text-[10px] text-red-500 font-medium px-2 py-0.5 rounded bg-red-50 active:bg-red-100 transition-colors"
           >
-            {deletingId === photo.id ? (
-              <span className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-            ) : (
-              <Trash2 size={10} />
-            )}
+            Удалить
           </button>
-          {photo.caption && (
-            <p className="text-[9px] text-gray-400 text-center mt-0.5 truncate w-20">{photo.caption}</p>
-          )}
         </div>
       ))}
     </div>
