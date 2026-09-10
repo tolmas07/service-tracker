@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { usePoints } from '../../hooks/usePoints';
 import type { Point } from '../../types';
-import { X, Check, Search, Locate } from 'lucide-react';
+import { X, Check, Search } from 'lucide-react';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -52,7 +52,6 @@ interface MapPointPickerProps {
 export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointPickerProps) {
   const { data: points = [] } = usePoints();
   const [search, setSearch] = useState('');
-  const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
 
   const filtered = search
     ? points.filter(p =>
@@ -100,7 +99,6 @@ export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointP
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <FlyToUser />
-          {flyTo && <FlyToPosition position={flyTo} />}
 
           {filtered.map((point) => (
             <Marker
@@ -154,12 +152,4 @@ export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointP
       )}
     </div>
   );
-}
-
-function FlyToPosition({ position }: { position: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo(position, 14, { duration: 0.8 });
-  }, [position, map]);
-  return null;
 }
