@@ -168,13 +168,7 @@ function TripsTab() {
 
   return (
     <div className="p-3 space-y-3">
-      {/* Button to add trip manually */}
-      <Link
-        to="/trips/new"
-        className="block w-full py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm text-sm"
-      >
-        + Добавить поездку вручную
-      </Link>
+
 
       {/* Total compensation summary */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-4 text-white shadow-md">
