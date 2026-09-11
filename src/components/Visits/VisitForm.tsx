@@ -16,18 +16,18 @@ function FilePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
     setUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl); // Cleanup memory leak
+    return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
 
   return (
-    <div className="relative">
-      <img src={url} alt="" className="w-20 h-20 object-cover rounded-xl border border-gray-200" loading="lazy" />
+    <div className="relative group">
+      <img src={url} alt="" className="w-20 h-20 object-cover rounded-xl border border-gray-200 dark:border-zinc-700" loading="lazy" />
       <button
         type="button"
         onClick={onRemove}
-        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 shadow active:scale-90 transition-transform"
+        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-md opacity-90 hover:opacity-100 hover:scale-110 active:scale-95 transition-all"
       >
-        <X size={12} />
+        <X size={12} strokeWidth={3} />
       </button>
     </div>
   );
@@ -95,19 +95,19 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
   return (
     <div className="flex gap-3 flex-wrap">
       {photos.map((photo) => (
-        <div key={photo.id} className="flex flex-col items-center gap-1">
-          <div className="relative">
+        <div key={photo.id} className="flex flex-col items-center gap-1.5">
+          <div className="relative group">
             <img
               src={urls[photo.id]}
               alt={photo.caption || ''}
-              className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+              className="w-20 h-20 object-cover rounded-xl border border-gray-200 dark:border-zinc-700"
               loading="lazy"
             />
             <button
               type="button"
               onClick={() => handleDelete(photo.id, photo.storage_path)}
               disabled={deletingId === photo.id}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-md active:scale-90 transition-transform disabled:opacity-50 border-2 border-white"
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-md opacity-90 hover:opacity-100 hover:scale-110 active:scale-95 transition-all disabled:opacity-50 border-2 border-white dark:border-zinc-900"
             >
               {deletingId === photo.id ? (
                 <span className="animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
@@ -120,7 +120,7 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
             type="button"
             onClick={() => handleDelete(photo.id, photo.storage_path)}
             disabled={deletingId === photo.id}
-            className="text-[10px] text-red-500 font-medium px-2 py-0.5 rounded bg-red-50 active:bg-red-100 transition-colors"
+            className="text-[10px] text-red-600 dark:text-red-400 font-medium px-2 py-0.5 rounded bg-red-50 dark:bg-red-500/10 active:bg-red-100 dark:active:bg-red-500/20 transition-colors"
           >
             Удалить
           </button>
@@ -205,8 +205,8 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
         setUploadProgress('Сжатие фото...');
         
         const compressOptions = {
-          maxSizeMB: 0.5,
-          maxWidthOrHeight: 1280,
+          maxSizeMB: 0.3, // Reduced from 0.5 for faster upload
+          maxWidthOrHeight: 1024, // Reduced from 1280
           useWebWorker: true,
         };
 
@@ -246,40 +246,40 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
   };
 
   const statusColors: Record<string, string> = {
-    working: 'bg-green-50 border-green-500 text-green-700',
-    not_working: 'bg-red-50 border-red-500 text-red-700',
-    sent_to_repair: 'bg-amber-50 border-amber-500 text-amber-700',
-    unknown: 'bg-gray-50 border-gray-400 text-gray-600',
+    working: 'bg-green-50 dark:bg-green-500/10 border-green-500/50 dark:border-green-500/30 text-green-700 dark:text-green-400',
+    not_working: 'bg-red-50 dark:bg-red-500/10 border-red-500/50 dark:border-red-500/30 text-red-700 dark:text-red-400',
+    sent_to_repair: 'bg-amber-50 dark:bg-amber-500/10 border-amber-500/50 dark:border-amber-500/30 text-amber-700 dark:text-amber-400',
+    unknown: 'bg-gray-50 dark:bg-zinc-800/50 border-gray-400 dark:border-zinc-600 text-gray-600 dark:text-zinc-400',
   };
 
   return (
-    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 bg-gray-50 dark:bg-zinc-950 flex flex-col overflow-hidden transition-colors duration-200">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg">
-          <ArrowLeft size={20} className="text-gray-600" />
+      <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 px-4 py-3 flex items-center gap-3 shrink-0 transition-colors">
+        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+          <ArrowLeft size={20} className="text-gray-600 dark:text-zinc-400" />
         </button>
-        <h2 className="text-lg font-bold text-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100">
           {isEdit ? 'Редактировать отчёт' : 'Новый отчёт'}
         </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Scrollable Fields */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
           {/* Point selector — map-based picker */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Точка обслуживания *</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">Точка обслуживания *</label>
             <button
               type="button"
               onClick={() => setShowMapPicker(true)}
               className={`w-full px-3 py-2.5 border rounded-xl text-sm text-left flex items-center gap-2 transition-colors ${
                 pointId
-                  ? 'border-blue-300 bg-blue-50 text-blue-800'
-                  : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
+                  ? 'border-blue-300 dark:border-blue-500/50 bg-blue-50 dark:bg-blue-500/10 text-blue-800 dark:text-blue-300'
+                  : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-400 dark:text-zinc-500 hover:border-gray-300 dark:hover:border-zinc-600'
               }`}
             >
-              <MapPin size={16} className={pointId ? 'text-blue-500' : 'text-gray-400'} />
+              <MapPin size={16} className={pointId ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-zinc-500'} />
               <span className="truncate flex-1">
                 {pointId
                   ? points.find(p => p.id === pointId)
@@ -293,7 +293,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
               <button
                 type="button"
                 onClick={() => setPointId('')}
-                className="text-xs text-gray-400 hover:text-red-500 mt-1 transition-colors"
+                className="text-xs text-gray-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 mt-1.5 transition-colors"
               >
                 Очистить выбор
               </button>
@@ -314,8 +314,8 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
 
           {/* Work types — multi-select */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Тип работы * <span className="text-gray-400">(можно несколько)</span>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">
+              Тип работы * <span className="text-gray-400 dark:text-zinc-500">(можно несколько)</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {WORK_TYPES.map((wt) => {
@@ -325,10 +325,10 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
                     key={wt}
                     type="button"
                     onClick={() => toggleType(wt)}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                    className={`py-2 px-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
                       selected
-                        ? 'bg-blue-50 border-blue-500 text-blue-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-500/50 dark:border-blue-500/30 text-blue-700 dark:text-blue-400'
+                        : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
                     }`}
                   >
                     {selected && <Check size={14} />}
@@ -341,19 +341,19 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Описание работ</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">Описание работ</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="Что было сделано..."
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-xl text-sm resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors"
             />
           </div>
 
           {/* Status after */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Статус после работ</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">Статус после работ</label>
             <div className="grid grid-cols-2 gap-2">
               {VISIT_STATUSES.map((s) => {
                 const active = statusAfter === s.value;
@@ -362,8 +362,8 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
                     key={s.value}
                     type="button"
                     onClick={() => setStatusAfter(active ? '' : s.value)}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
-                      active ? statusColors[s.value] : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    className={`py-2 px-2.5 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                      active ? statusColors[s.value] : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
                     }`}
                   >
                     {active && <Check size={14} />}
@@ -376,24 +376,24 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Заметки</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">Заметки</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Дополнительные заметки"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors"
             />
           </div>
 
           {/* Photos — always visible */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Фотографии</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">Фотографии</label>
 
             {/* Existing photos (edit mode) */}
             {isEdit && initialData?.id && (
               <div className="mb-3" key={photoRefreshKey}>
-                <p className="text-[11px] text-gray-400 mb-1.5">Загруженные фото (нажмите ✕ чтобы удалить):</p>
+                <p className="text-[11px] text-gray-400 dark:text-zinc-500 mb-1.5">Загруженные фото (нажмите ✕ чтобы удалить):</p>
                 <ExistingPhotos
                   visitId={initialData.id}
                   onDelete={() => setPhotoRefreshKey(k => k + 1)}
@@ -402,9 +402,9 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
             )}
 
             {/* New photo upload */}
-            <label className="flex items-center justify-center gap-2 px-4 py-4 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 text-sm text-gray-500 transition-colors">
+            <label className="flex items-center justify-center gap-2 px-4 py-4 bg-white dark:bg-zinc-900 border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800 text-sm text-gray-500 dark:text-zinc-400 transition-colors">
               <Camera size={20} />
-              <span>{isEdit ? 'Добавить ещё фото' : 'Сделать фото или выбрать из галереи'}</span>
+              <span>{isEdit ? 'Добавить ещё фото' : 'Сделать фото или выбрать'}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -425,11 +425,11 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
         </div>
 
         {/* Submit — docked at bottom */}
-        <div className="p-3 bg-white border-t border-gray-200 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        <div className="p-3 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-800 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] dark:shadow-none transition-colors">
           <button
             type="submit"
             disabled={submitting || !pointId || selectedTypes.length === 0}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
           >
             {submitting ? (uploadProgress || 'Сохранение...') : isEdit ? 'Сохранить изменения' : 'Сохранить отчёт'}
           </button>

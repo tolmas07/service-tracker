@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X } from 'lucide-react';
+import { useDarkMode } from '../../hooks/useDarkMode';
+import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X, Sun, Moon } from 'lucide-react';
 import { APP_VERSION } from '../../lib/constants';
+import { Logo } from '../Logo';
 
 const workerLinks = [
   { to: '/', icon: Map, label: 'Карта' },
@@ -50,17 +52,17 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 w-full max-w-sm shadow-xl border border-zinc-100 dark:border-zinc-800 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Сменить пароль</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
-            <X size={20} className="text-gray-400" />
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Сменить пароль</h3>
+          <button onClick={onClose} className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+            <X size={20} className="text-zinc-400 dark:text-zinc-500" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Новый пароль</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Новый пароль</label>
             <input
               type="password"
               value={newPassword}
@@ -68,29 +70,29 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
               placeholder="Минимум 6 символов"
               required
               minLength={6}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Подтвердите пароль</label>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Подтвердите пароль</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Повторите пароль"
               required
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors"
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-              <p className="text-red-600 text-xs">{error}</p>
+            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-3 py-2">
+              <p className="text-red-600 dark:text-red-400 text-xs font-medium">{error}</p>
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-              <p className="text-green-700 text-xs">{success}</p>
+            <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-xl px-3 py-2">
+              <p className="text-green-700 dark:text-green-400 text-xs font-medium">{success}</p>
             </div>
           )}
 
@@ -111,12 +113,13 @@ export function Header() {
   const { user, signOut } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const { isDark, toggle } = useDarkMode();
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 px-4 h-14 flex items-center justify-between shrink-0 z-50 shadow-sm">
+      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 h-14 flex items-center justify-between shrink-0 z-50 transition-colors duration-200">
         <Link to="/" className="flex items-center no-underline">
-          <img src="/logo.svg" alt="UzmulkTracker" className="h-8 w-auto" />
+          <Logo className="h-7 w-auto text-zinc-900 dark:text-white" />
         </Link>
 
         {/* Desktop nav */}
@@ -128,7 +131,7 @@ export function Header() {
                 key={to}
                 to={to}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  active ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <Icon size={16} />
@@ -138,20 +141,27 @@ export function Header() {
           })}
         </nav>
 
-        {/* User menu */}
-        <div className="flex items-center gap-2 relative">
+        {/* Actions */}
+        <div className="flex items-center gap-3 relative">
+          <button
+            onClick={toggle}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           {user && (
             <>
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left"
               >
-                <div className="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-sm font-semibold border border-blue-100 dark:border-blue-500/20">
                   {user.full_name?.charAt(0)?.toUpperCase()}
                 </div>
-                <div className="hidden sm:block text-left">
-                  <div className="text-sm font-medium text-gray-900 leading-tight">{user.full_name}</div>
-                  <div className="text-[10px] text-gray-500">
+                <div className="hidden sm:block mr-1">
+                  <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-tight">{user.full_name}</div>
+                  <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
                     {user.role === 'manager' ? 'Руководитель' : 'Специалист'}
                   </div>
                 </div>
@@ -161,27 +171,27 @@ export function Header() {
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-[100]" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-1 w-52 z-[101]">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900 truncate">{user.full_name}</p>
-                      <p className="text-xs text-gray-500 truncate">{user.role === 'manager' ? 'Руководитель' : 'Специалист'}</p>
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-zinc-900 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-800 py-1 w-52 z-[101] transition-colors">
+                    <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{user.full_name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.role === 'manager' ? 'Руководитель' : 'Специалист'}</p>
                     </div>
                     <button
                       onClick={() => { setShowMenu(false); setShowChangePassword(true); }}
-                      className="w-full px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                      className="w-full px-3 py-2.5 text-left text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2 transition-colors"
                     >
-                      <Key size={16} className="text-gray-400" />
+                      <Key size={16} className="text-zinc-400 dark:text-zinc-500" />
                       Сменить пароль
                     </button>
                     <button
                       onClick={() => { setShowMenu(false); signOut(); }}
-                      className="w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                      className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 transition-colors"
                     >
                       <LogOut size={16} />
                       Выйти
                     </button>
-                    <div className="px-3 py-1.5 border-t border-gray-100">
-                      <p className="text-[10px] text-gray-400 text-center">Версия {APP_VERSION}</p>
+                    <div className="px-3 py-1.5 border-t border-zinc-100 dark:border-zinc-800">
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center">Версия {APP_VERSION}</p>
                     </div>
                   </div>
                 </>
@@ -203,7 +213,7 @@ export function BottomNav() {
   const links = isManager ? managerLinks : workerLinks;
 
   return (
-    <nav className="md:hidden bg-white border-t border-gray-200 flex justify-around py-1.5 shrink-0 safe-bottom">
+    <nav className="md:hidden bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex justify-around py-1.5 shrink-0 safe-bottom transition-colors duration-200">
       {links.map(({ to, icon: Icon, label }) => {
         const active = location.pathname === to;
         return (
@@ -211,10 +221,10 @@ export function BottomNav() {
             key={to}
             to={to}
             className={`flex flex-col items-center text-[10px] px-3 py-1.5 rounded-lg transition-colors ${
-              active ? 'text-blue-600' : 'text-gray-400'
+              active ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
             }`}
           >
-            <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
+            <Icon size={22} strokeWidth={active ? 2.5 : 2} />
             <span className="mt-0.5 font-medium">{label}</span>
           </Link>
         );

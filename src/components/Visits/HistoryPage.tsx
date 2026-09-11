@@ -14,26 +14,6 @@ const statusLabels: Record<string, string> = {
   unknown: 'Неизвестно',
 };
 
-const statusBadgeClass: Record<string, string> = {
-  working: 'bg-green-100 text-green-700',
-  not_working: 'bg-red-100 text-red-700',
-  sent_to_repair: 'bg-amber-100 text-amber-700',
-  unknown: 'bg-gray-100 text-gray-600',
-};
-
-function WorkTypeBadges({ workType }: { workType: string }) {
-  const types = workType.split(',').map(s => s.trim()).filter(Boolean);
-  return (
-    <div className="flex flex-wrap gap-1 mt-1.5">
-      {types.map((type, i) => (
-        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-md font-medium">
-          {type}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export function HistoryPage() {
   const [filter, setFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -65,99 +45,124 @@ export function HistoryPage() {
   });
 
   return (
-    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 bg-gray-50 dark:bg-zinc-950 flex flex-col overflow-hidden transition-colors duration-200">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
-        <h2 className="text-lg font-bold text-gray-900">История отчетов</h2>
-        <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-          {filteredVisits.length} шт
-        </span>
-      </div>
+      <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 pt-3 px-4 pb-0 shrink-0 transition-colors">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100 mb-4">История посещений</h2>
 
-      <div className="p-3 bg-white border-b border-gray-100 shrink-0 space-y-3">
-        <input
-          type="text"
-          placeholder="Поиск по точке, типу работ..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
-        />
+        {/* Filter Tabs */}
+        <div className="flex bg-gray-100/80 dark:bg-zinc-800/50 p-1 rounded-xl mb-4 shadow-inner border border-gray-200/50 dark:border-zinc-700/50">
+          <button
+            onClick={() => setFilter('')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              !filter ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
+            }`}
+          >
+            Все
+          </button>
+          <button
+            onClick={() => setFilter('working')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              filter === 'working' ? 'bg-white dark:bg-zinc-700 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
+            }`}
+          >
+            В работе
+          </button>
+          <button
+            onClick={() => setFilter('not_working')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+              filter === 'not_working' ? 'bg-white dark:bg-zinc-700 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
+            }`}
+          >
+            Не в работе
+          </button>
+        </div>
         
         {/* Date Filter */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 pb-3">
           <div className="flex-1">
-            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период с</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Период с</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-xl text-xs font-medium focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
           </div>
           <div className="flex-1">
-            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период по</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <label className="block text-[10px] font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Период по</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-3 py-2 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 rounded-xl text-xs font-medium focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
           </div>
           {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-3 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Сброс</button>
+            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-3 py-2 text-xs font-medium text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-colors mb-[1px]">Сброс</button>
           )}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="p-3">
+        <div className="p-4">
           <Link
             to="/visits/new"
-            className="block w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-center font-medium hover:from-blue-700 hover:to-blue-800 transition-all shadow-md active:scale-[0.98]"
+            className="block w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-center font-medium text-sm shadow-sm hover:shadow transition-all active:scale-[0.98]"
           >
             + Новый отчёт
           </Link>
         </div>
         
         {visitsLoading ? (
-          <div className="text-center text-gray-400 py-12">Загрузка...</div>
+          <div className="text-center text-gray-400 dark:text-zinc-500 py-12">Загрузка...</div>
         ) : filteredVisits.length === 0 ? (
-          <div className="text-center text-gray-400 py-12">
-            <Wrench size={32} className="mx-auto mb-2 opacity-50" />
-            <p>Нет посещений</p>
+          <div className="text-center text-gray-400 dark:text-zinc-500 py-12 bg-white dark:bg-zinc-900 mx-4 rounded-2xl border border-gray-200 dark:border-zinc-800">
+            <Wrench size={32} className="mx-auto mb-3 opacity-30 text-gray-400 dark:text-zinc-500" />
+            <p className="font-medium text-sm">Нет посещений</p>
           </div>
         ) : (
-          <div className="px-3 pb-3 space-y-2.5">
+          <div className="px-4 pb-4 space-y-3">
             {filteredVisits.map((visit) => (
-              <div key={visit.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm transition-shadow hover:shadow-md">
+              <div key={visit.id} className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-gray-200/60 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md">
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <MapPin size={14} className="text-blue-600 shrink-0" />
-                      <span className="font-semibold text-sm text-gray-900 truncate">
+                      <MapPin size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="font-semibold text-base text-gray-900 dark:text-zinc-100 tracking-tight truncate">
                         {visit.point?.name || 'Неизвестная точка'}
                       </span>
                     </div>
 
                     {/* Work types as tags */}
-                    <WorkTypeBadges workType={visit.work_type} />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {visit.work_type?.split(',').map(s => s.trim()).filter(Boolean).map((type, i) => (
+                        <span key={i} className="text-[11px] px-2 py-0.5 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 rounded-md font-medium">
+                          {type}
+                        </span>
+                      ))}
+                    </div>
 
                     {visit.work_description && (
-                      <p className="text-xs text-gray-600 mt-1.5 line-clamp-2 leading-relaxed">{visit.work_description}</p>
+                      <p className="text-xs text-gray-600 dark:text-zinc-400 mt-2 line-clamp-2 leading-relaxed">{visit.work_description}</p>
                     )}
 
                     {/* Status badge */}
                     {visit.status_after && (
-                      <span className={`inline-block mt-2.5 text-[11px] px-2.5 py-1 rounded-full font-medium ${statusBadgeClass[visit.status_after] || 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`inline-block mt-3 text-[11px] px-2 py-0.5 rounded-md font-medium ${
+                        visit.status_after === 'working' ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400' :
+                        visit.status_after === 'not_working' ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' :
+                        'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                      }`}>
                         {statusLabels[visit.status_after] || visit.status_after}
                       </span>
                     )}
 
                     {visit.notes && (
-                      <p className="text-[11px] text-gray-400 mt-2 bg-gray-50 p-2 rounded-lg border border-gray-100">📝 {visit.notes}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-2 bg-gray-50 dark:bg-zinc-800/50 p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 font-medium">📝 {visit.notes}</p>
                     )}
                   </div>
 
                   <div className="flex flex-col items-end gap-2 ml-3 shrink-0">
-                    <div className="text-[11px] text-gray-400 flex items-center gap-1 font-medium bg-gray-50 px-2 py-1 rounded-md">
+                    <div className="text-xs text-gray-500 dark:text-zinc-400 flex items-center gap-1 font-medium bg-gray-50 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-gray-200/50 dark:border-zinc-700/50">
                       <Calendar size={12} />
                       {format(new Date(visit.visited_at), 'dd MMM, HH:mm', { locale: ru })}
                     </div>
                     <button
                       onClick={() => navigate(`/visits/${visit.id}/edit`)}
-                      className="mt-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium border border-transparent hover:border-blue-100"
+                      className="mt-1 flex items-center justify-center w-8 h-8 text-gray-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 bg-gray-50 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-colors"
                     >
-                      <Pencil size={12} /> Изменить
+                      <Pencil size={14} />
                     </button>
                   </div>
                 </div>

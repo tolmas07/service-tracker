@@ -171,29 +171,27 @@ export function ManualTripForm() {
   };
 
   return (
-    <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
-      {/* Premium Header */}
-      <div className="bg-white border-b border-gray-200 pt-3 px-4 pb-0 shrink-0">
-        <h2 className="text-xl font-extrabold text-gray-900 mb-4 tracking-tight">Маршруты и пробег</h2>
+    <div className="flex-1 min-h-0 bg-gray-50 dark:bg-zinc-950 flex flex-col overflow-hidden transition-colors duration-200">
+      <div className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 pt-3 px-4 pb-0 shrink-0 transition-colors">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100 mb-4">Маршрут и пробег</h2>
         
-        {/* Segmented Control */}
-        <div className="flex bg-gray-100/80 p-1 rounded-xl mb-4 shadow-inner border border-gray-200/60">
+        <div className="flex bg-gray-100/80 dark:bg-zinc-800/50 p-1 rounded-xl mb-4 shadow-inner border border-gray-200/50 dark:border-zinc-700/50">
           <button
             onClick={() => setActiveTab('new')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
               activeTab === 'new' 
-                ? 'bg-white text-blue-600 shadow-[0_2px_8px_rgba(0,0,0,0.08)]' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
             }`}
           >
             <Plus size={16} /> Новая поездка
           </button>
           <button
             onClick={() => setActiveTab('list')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
               activeTab === 'list' 
-                ? 'bg-white text-blue-600 shadow-[0_2px_8px_rgba(0,0,0,0.08)]' 
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
             }`}
           >
             <List size={16} /> Мои поездки
@@ -204,62 +202,59 @@ export function ManualTripForm() {
       <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'new' && (
           <div className="p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-5">
-              {/* Date */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 space-y-5 transition-colors">
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Дата поездки</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">Дата поездки</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-xl text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
-              {/* Time range */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Выезд</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">Выезд</label>
                   <input
                     type="time"
                     value={timeStart}
                     onChange={(e) => setTimeStart(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-xl text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Прибытие</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">Прибытие</label>
                   <input
                     type="time"
                     value={timeEnd}
                     onChange={(e) => setTimeEnd(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-xl text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {/* Distance */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Общее расстояние (км)</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-2">Общее расстояние (км)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Ruler size={16} className="text-gray-400" />
+                    <Ruler size={16} className="text-gray-400 dark:text-zinc-500" />
                   </div>
                   <input
                     type="number"
                     value={distanceKm}
                     onChange={(e) => setDistanceKm(e.target.value)}
-                    placeholder="Например: 47.5"
+                    placeholder="Пример: 47.5"
                     step="0.1"
                     min="0"
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    className="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-xl text-sm focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
                 
                 {distanceKm && !isNaN(parseFloat(distanceKm)) && (
-                  <div className="mt-3 p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
-                    <span className="text-xs font-medium text-green-700">Итого компенсация:</span>
-                    <span className="text-sm font-bold text-green-700">
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-500/10 rounded-xl border border-blue-100 dark:border-blue-500/20 flex items-center justify-between animate-in fade-in zoom-in-95 duration-200">
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Итого компенсация:</span>
+                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">
                       {(parseFloat(distanceKm) * COST_PER_KM).toLocaleString()} сум
                     </span>
                   </div>
@@ -270,11 +265,11 @@ export function ManualTripForm() {
             <button
               onClick={handleSaveForm}
               disabled={saving || !distanceKm}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-sm hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               {saving ? 'Сохранение...' : (
                 <>
-                  <Check size={18} strokeWidth={3} />
+                  <Check size={18} />
                   Сохранить поездку
                 </>
               )}
@@ -283,36 +278,35 @@ export function ManualTripForm() {
         )}
 
         {activeTab === 'list' && (
-          <div className="p-4 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            {/* Stats Card */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
+          <div className="p-4 space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
+            <div className="bg-zinc-900 dark:bg-zinc-800 rounded-2xl p-5 text-zinc-100 shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Route size={80} />
               </div>
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm">
-                    <Wallet size={18} className="text-blue-300" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 bg-white/10 rounded-lg">
+                    <Wallet size={16} className="text-zinc-300" />
                   </div>
-                  <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider">Сумма компенсации</span>
+                  <span className="text-xs font-medium text-zinc-300 uppercase tracking-wider">Компенсация</span>
                 </div>
-                <div className="text-3xl font-extrabold tracking-tight mb-1">
-                  {totalCompensation.toLocaleString()} <span className="text-lg text-blue-300 font-medium">UZS</span>
+                <div className="text-2xl font-bold mb-1">
+                  {totalCompensation.toLocaleString()} <span className="text-base text-zinc-400 font-medium">UZS</span>
                 </div>
-                <div className="text-sm text-slate-300 font-medium flex items-center gap-2 mt-4">
-                  <span className="bg-slate-700/50 px-2 py-1 rounded-md">{totalKm.toFixed(1)} км</span>
-                  <span className="bg-slate-700/50 px-2 py-1 rounded-md">{trips.length} поездок</span>
+                <div className="text-sm text-zinc-400 font-medium flex items-center gap-2 mt-3">
+                  <span className="bg-zinc-800/50 dark:bg-zinc-900/50 px-2 py-1 rounded-md">{totalKm.toFixed(1)} км</span>
+                  <span className="bg-zinc-800/50 dark:bg-zinc-900/50 px-2 py-1 rounded-md">{trips.length} поездок</span>
                 </div>
               </div>
             </div>
 
             {isLoading ? (
-              <div className="text-center text-gray-400 py-12">Загрузка...</div>
+              <div className="text-center text-gray-400 dark:text-zinc-500 py-12">Загрузка...</div>
             ) : trips.length === 0 ? (
-              <div className="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-100">
+              <div className="text-center text-gray-400 dark:text-zinc-500 py-12 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800">
                 <MapPin size={32} className="mx-auto mb-3 opacity-30 text-gray-500" />
                 <p className="font-medium text-sm">У вас еще нет поездок</p>
-                <button onClick={() => setActiveTab('new')} className="mt-3 text-blue-600 text-xs font-semibold hover:underline">
+                <button onClick={() => setActiveTab('new')} className="mt-3 text-blue-600 dark:text-blue-400 text-xs font-medium hover:underline">
                   Добавить первую поездку
                 </button>
               </div>
@@ -323,18 +317,18 @@ export function ManualTripForm() {
                   const isEditing = editingId === trip.id;
 
                   return (
-                    <div key={trip.id} className="bg-white rounded-2xl border border-gray-100/80 shadow-sm overflow-hidden transition-all hover:shadow-md">
+                    <div key={trip.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200/60 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors">
                       <div className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-bold text-gray-900 mb-1">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-1.5">
                               {format(new Date(trip.started_at), 'dd MMMM yyyy', { locale: ru })}
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-blue-50 text-blue-700">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400">
                                 <Ruler size={10} /> {km} км
                               </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-green-50 text-green-700">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400">
                                 {trip.compensation_uzs?.toLocaleString()} сум
                               </span>
                             </div>
@@ -344,20 +338,20 @@ export function ManualTripForm() {
                             <button
                               onClick={() => (isEditing ? setEditingId(null) : startEdit(trip))}
                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                                isEditing ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-400 hover:bg-blue-50 hover:text-blue-600'
+                                isEditing ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-gray-50 dark:bg-zinc-800 text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400'
                               }`}
                             >
                               <Pencil size={14} />
                             </button>
                             <button
                               onClick={() => handleDeleteTrip(trip.id)}
-                              className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                              className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 dark:bg-zinc-800 text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                             >
                               <Trash2 size={14} />
                             </button>
                             <button
                               onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
-                              className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors ml-1"
+                              className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors ml-1"
                             >
                               {expandedTrip === trip.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </button>
@@ -366,38 +360,38 @@ export function ManualTripForm() {
 
                         {/* Edit Form */}
                         {isEditing && (
-                          <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in duration-200">
+                          <div className="mt-4 p-3 bg-gray-50 dark:bg-zinc-950 rounded-xl border border-gray-200 dark:border-zinc-800 animate-in fade-in duration-200">
                             <div className="grid grid-cols-2 gap-3 mb-3">
                               <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Дата</label>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Дата</label>
                                 <input
                                   type="date"
                                   value={editDate}
                                   onChange={(e) => setEditDate(e.target.value)}
-                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Км</label>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Км</label>
                                 <input
                                   type="number"
                                   value={editKm}
                                   onChange={(e) => setEditKm(e.target.value)}
                                   step="0.1" min="0"
-                                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                 />
                               </div>
                             </div>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => saveEdit(trip)}
-                                className="flex-1 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors"
+                                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                               >
                                 Сохранить
                               </button>
                               <button
                                 onClick={() => setEditingId(null)}
-                                className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50"
+                                className="px-4 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
                               >
                                 Отмена
                               </button>

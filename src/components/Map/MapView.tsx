@@ -5,7 +5,7 @@ import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDel
 import { useAuthStore } from '../../stores/authStore';
 import type { Point, PointStatus } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Locate, Pencil, Trash2, Navigation, Check } from 'lucide-react';
+import { Plus, X, Locate, Pencil, Trash2, Navigation, Check, MapPin } from 'lucide-react';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -82,6 +82,7 @@ export function MapView() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const isWorker = user?.role === 'worker';
+  const userPointsCount = points.filter(p => p.worker_id === user?.id).length;
 
   const [showForm, setShowForm] = useState(false);
   const [editingPoint, setEditingPoint] = useState<Point | null>(null);
@@ -292,7 +293,7 @@ export function MapView() {
                 {!isWorker && (
                   <button
                     onClick={() => navigate(`/points/${point.id}`)}
-                    className="w-full mt-2 text-xs text-blue-600 py-1.5 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                    className="w-full mt-2 text-xs text-blue-600 dark:text-blue-400 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-colors font-medium"
                   >
                     Подробнее →
                   </button>
@@ -303,131 +304,133 @@ export function MapView() {
         ))}
       </MapContainer>
 
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[1000] border border-gray-100">
-        <div className="font-semibold text-gray-700 mb-2">Статус точек</div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-gray-600">Работает</span></div>
-            <strong className="text-green-600">{points.filter(p => p.status === 'working').length}</strong>
+      {/* Top Statistics Card */}
+      <div className="absolute top-4 left-4 right-4 sm:right-auto z-[1000] pointer-events-none flex justify-center sm:justify-start">
+        <div className="bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-xl p-4 pointer-events-auto w-full sm:w-72 border border-zinc-200/50 dark:border-zinc-800/50 transition-colors">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-blue-50 dark:bg-blue-500/10 p-2 rounded-xl text-blue-600 dark:text-blue-400">
+              <MapPin size={18} />
+            </div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200">Статистика точек</h2>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span><span className="text-gray-600">Не работает</span></div>
-            <strong className="text-red-600">{points.filter(p => p.status === 'not_working').length}</strong>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-zinc-50 dark:bg-zinc-950 rounded-xl p-3 border border-zinc-100 dark:border-zinc-800/80 transition-colors">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1 font-medium">Всего точек</div>
+              <div className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                {points.length}
+              </div>
+            </div>
+            <div className="bg-zinc-50 dark:bg-zinc-950 rounded-xl p-3 border border-zinc-100 dark:border-zinc-800/80 transition-colors">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1 font-medium">Ваши точки</div>
+              <div className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-tight">
+                {userPointsCount}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-500"></span><span className="text-gray-600">Неизвестно</span></div>
-            <strong className="text-gray-500">{points.filter(p => p.status === 'unknown').length}</strong>
-          </div>
-        </div>
-        <div className="mt-2 pt-2 border-t border-gray-100 text-gray-500">
-          Всего: <strong>{points.length}</strong>
         </div>
       </div>
 
-      {/* Location Button — uses navigator.geolocation directly */}
-      <button
-        onClick={handleLocate}
-        className="absolute bottom-6 right-4 z-[1000] w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all border border-gray-200"
-        title="Моё местоположение"
-      >
-        <Locate size={22} className={locating ? 'text-blue-600 animate-pulse' : 'text-gray-600'} />
-      </button>
-
-      {/* Add Point FAB */}
-      {isWorker && (
+      {/* Floating Action Buttons */}
+      <div className="absolute right-4 bottom-6 z-[1000] flex flex-col gap-3">
         <button
-          onClick={() => openAddForm()}
-          className="absolute bottom-6 left-4 z-[1000] w-12 h-12 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all"
-          title="Добавить точку"
+          onClick={handleLocate}
+          className="w-12 h-12 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl shadow-xl flex items-center justify-center hover:bg-white dark:hover:bg-zinc-900 active:scale-95 transition-all border border-zinc-200/50 dark:border-zinc-800/50"
+          title="Моё местоположение"
         >
-          <Plus size={24} />
+          <Locate size={20} className={locating ? 'text-blue-600 animate-pulse' : 'text-zinc-700 dark:text-zinc-300'} />
         </button>
-      )}
+
+        {isWorker && (
+          <button
+            onClick={() => openAddForm()}
+            className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl flex items-center justify-center hover:shadow-2xl active:scale-95 transition-all border border-blue-500/50"
+            title="Добавить точку"
+          >
+            <Plus size={26} />
+          </button>
+        )}
+      </div>
 
       {/* Add/Edit Point Modal */}
       {showForm && isWorker && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[1001] p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                {editingPoint ? 'Редактировать точку' : 'Новая точка'}
+        <div className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-[2000] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto border border-zinc-100 dark:border-zinc-800 transition-colors animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                {editingPoint ? 'Редактировать' : 'Новая точка'}
               </h3>
-              <button onClick={() => { setShowForm(false); setEditingPoint(null); }} className="p-1 hover:bg-gray-100 rounded-lg">
-                <X size={20} className="text-gray-400" />
+              <button onClick={() => { setShowForm(false); setEditingPoint(null); }} className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors">
+                <X size={18} />
               </button>
             </div>
-            <div className="space-y-3">
+            
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Название *</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Название *</label>
                 <input
                   type="text"
                   placeholder="Например: Булунгурский район"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
+              
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Адрес</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Адрес</label>
                 <input
                   type="text"
                   placeholder="ул. Навои, 15"
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Широта *</label>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Широта *</label>
                   <input
                     type="number"
                     placeholder="41.299500"
                     value={form.lat}
                     onChange={(e) => setForm({ ...form, lat: e.target.value })}
                     step="0.000001"
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Долгота *</label>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Долгота *</label>
                   <input
                     type="number"
                     placeholder="69.240100"
                     value={form.lng}
                     onChange={(e) => setForm({ ...form, lng: e.target.value })}
                     step="0.000001"
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                   />
                 </div>
               </div>
+              
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Заметки</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Заметки</label>
                 <input
                   type="text"
-                  placeholder="Тел: 99 123 45 67"
+                  placeholder="Доп. информация"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
             </div>
-            <div className="flex gap-2 mt-5">
-              <button
-                onClick={() => { setShowForm(false); setEditingPoint(null); }}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={!form.name || !form.lat || !form.lng}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                {editingPoint ? 'Сохранить' : 'Добавить'}
-              </button>
-            </div>
+            
+            <button
+              onClick={handleSave}
+              disabled={!form.name || !form.lat || !form.lng}
+              className="w-full mt-6 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm shadow-sm hover:shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+            >
+              {editingPoint ? 'Сохранить изменения' : 'Создать точку'}
+            </button>
           </div>
         </div>
       )}
