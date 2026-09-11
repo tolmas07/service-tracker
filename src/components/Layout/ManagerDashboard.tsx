@@ -6,7 +6,7 @@ import type { Point, Trip, TripPoint, PointStatus } from '../../types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Route, MapPin, Ruler, Wallet, Users, BarChart3 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Route, MapPin, Ruler, Wallet, Users, BarChart3, Download } from 'lucide-react';
 
 const statusColors: Record<PointStatus, string> = {
   working: '#16a34a',
@@ -96,12 +96,23 @@ export function ManagerDashboard() {
     },
   });
 
-  // Fetch points (ALL points always visible — they are shared locations)
+  // Fetch points
   const { data: points = [] } = useQuery({
     queryKey: ['points'],
     queryFn: async () => {
       const { data } = await supabase.from('points').select('*').order('name');
       return (data || []) as Point[];
+    },
+  });
+
+  // Fetch visits for points filtering
+  const { data: visits = [] } = useQuery({
+    queryKey: ['visits', selectedWorker],
+    queryFn: async () => {
+      let q = supabase.from('visits').select('point_id, visited_at');
+      if (selectedWorker !== 'all') q = q.eq('worker_id', selectedWorker);
+      const { data } = await q;
+      return data || [];
     },
   });
 
@@ -116,8 +127,8 @@ export function ManagerDashboard() {
     },
   });
 
-  // Stats
-  const filteredTrips = dateFrom || dateTo
+  // Filter trips by date
+  const filteredTrips = (dateFrom || dateTo)
     ? trips.filter(t => {
         const d = new Date(t.started_at);
         if (dateFrom && d < new Date(dateFrom)) return false;
@@ -126,11 +137,24 @@ export function ManagerDashboard() {
       })
     : trips;
 
+  // Filter points by date (must have a visit in that date range)
+  const displayedPoints = (dateFrom || dateTo)
+    ? points.filter(p => {
+        return visits.some(v => {
+          if (v.point_id !== p.id) return false;
+          const d = new Date(v.visited_at);
+          if (dateFrom && d < new Date(dateFrom)) return false;
+          if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+          return true;
+        });
+      })
+    : points;
+
   const totalKm = filteredTrips.reduce((s, t) => s + (t.total_distance_m || 0) / 1000, 0);
   const totalCompensation = filteredTrips.reduce((s, t) => s + (t.compensation_uzs || 0), 0);
-  const workingCount = points.filter(p => p.status === 'working').length;
-  const notWorkingCount = points.filter(p => p.status === 'not_working').length;
-  const sentToRepairCount = points.filter(p => p.status === 'sent_to_repair' as string).length;
+  const workingCount = displayedPoints.filter(p => p.status === 'working').length;
+  const notWorkingCount = displayedPoints.filter(p => p.status === 'not_working').length;
+  const sentToRepairCount = displayedPoints.filter(p => p.status === 'sent_to_repair' as string).length;
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'overview', label: 'Обзор', icon: BarChart3 },
@@ -138,10 +162,44 @@ export function ManagerDashboard() {
     { key: 'points', label: 'Точки', icon: MapPin },
   ];
 
+  const exportTripsCSV = () => {
+    const headers = ['Специалист', 'Дата', 'Дистанция (км)', 'Компенсация (сум)'];
+    const rows = filteredTrips.map(t => [
+      `"${t.worker?.full_name || 'Неизвестный'}"`,
+      `"${format(new Date(t.started_at), 'dd.MM.yyyy HH:mm')}"`,
+      (t.total_distance_m / 1000).toFixed(1),
+      t.compensation_uzs
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trips_${dateFrom || 'all'}_${dateTo || 'all'}.csv`;
+    a.click();
+  };
+
+  const exportPointsCSV = () => {
+    const headers = ['Название', 'Адрес', 'Статус', 'Заметки'];
+    const rows = displayedPoints.map(p => [
+      `"${p.name.replace(/"/g, '""')}"`,
+      `"${(p.address || '').replace(/"/g, '""')}"`,
+      `"${statusLabels[p.status] || p.status}"`,
+      `"${(p.notes || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `points_${dateFrom || 'all'}_${dateTo || 'all'}.csv`;
+    a.click();
+  };
+
   return (
     <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden">
-      {/* Worker selector */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0">
+      {/* Filters Area */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0 space-y-3">
         <div className="flex items-center gap-2">
           <Users size={16} className="text-gray-400 shrink-0" />
           <select
@@ -155,6 +213,21 @@ export function ManagerDashboard() {
             ))}
           </select>
         </div>
+
+        {/* Global Date Filter */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период с</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500" />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период по</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-blue-500" />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-3 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Сброс</button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -163,7 +236,7 @@ export function ManagerDashboard() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`flex items-center justify-center flex-1 gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
             }`}
           >
@@ -188,13 +261,13 @@ export function ManagerDashboard() {
 
             {/* Map */}
             <div>
-              <h3 className="font-bold text-sm text-gray-700 mb-2">Карта точек</h3>
+              <h3 className="font-bold text-sm text-gray-700 mb-2">Карта точек за период</h3>
               <div className="h-64 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                <MapContainer center={[39.65, 66.95]} zoom={8} className="h-full w-full" zoomControl={false} attributionControl={false}>
+                <MapContainer center={[41.3, 69.2]} zoom={6} className="h-full w-full" zoomControl={false} attributionControl={false}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <FitBounds points={points} />
-                  {points.map(point => (
-                    <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createIcon(statusColors[point.status])}>
+                  <FitBounds points={displayedPoints} />
+                  {displayedPoints.map(point => (
+                    <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createIcon(statusColors[point.status] || '#6b7280')}>
                       <Popup>
                         <div className="min-w-[150px]">
                           <strong className="text-sm">{point.name}</strong>
@@ -211,7 +284,7 @@ export function ManagerDashboard() {
             {/* Recent trips */}
             <div>
               <h3 className="font-bold text-sm text-gray-700 mb-2">Последние поездки</h3>
-              <TripList trips={trips.slice(0, 5)} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
+              <TripList trips={filteredTrips.slice(0, 5)} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
             </div>
           </div>
         )}
@@ -219,26 +292,24 @@ export function ManagerDashboard() {
         {/* Trips tab */}
         {activeTab === 'trips' && (
           <div className="p-4 space-y-3">
-            {/* Date filter */}
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">С даты</label>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">По дату</label>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs" />
-              </div>
-              {(dateFrom || dateTo) && (
-                <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Сброс</button>
-              )}
-            </div>
-
             {/* Trip summary */}
             <div className="bg-blue-50 rounded-xl p-3 flex items-center justify-between">
-              <span className="text-xs text-blue-700">{filteredTrips.length} поездок</span>
-              <span className="text-sm font-bold text-blue-700">{totalKm.toFixed(1)} км · {totalCompensation.toLocaleString()} сум</span>
+              <div className="text-xs text-blue-700">
+                <strong>{filteredTrips.length}</strong> поездок
+                <div className="mt-0.5 text-[10px] opacity-80">По выбранным фильтрам</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-blue-700">{totalKm.toFixed(1)} км</div>
+                <div className="text-xs font-medium text-blue-700 mt-0.5">{totalCompensation.toLocaleString()} сум</div>
+              </div>
             </div>
+
+            <button
+              onClick={exportTripsCSV}
+              className="w-full py-2.5 bg-white border border-blue-200 text-blue-600 rounded-xl text-sm font-medium hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <Download size={16} /> Выгрузить в Excel (CSV)
+            </button>
 
             <TripList trips={filteredTrips} expandedTrip={expandedTrip} setExpandedTrip={setExpandedTrip} />
           </div>
@@ -254,8 +325,15 @@ export function ManagerDashboard() {
               <StatusPill color="amber" count={sentToRepairCount} label="На ремонте" />
             </div>
 
+            <button
+              onClick={exportPointsCSV}
+              className="w-full py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <Download size={16} /> Выгрузить точки (CSV)
+            </button>
+
             {/* Sorted: working first, then not_working, then sent_to_repair, then unknown */}
-            {[...points]
+            {[...displayedPoints]
               .sort((a, b) => {
                 const order: Record<string, number> = { working: 0, not_working: 1, sent_to_repair: 2, unknown: 3 };
                 return (order[a.status] ?? 9) - (order[b.status] ?? 9);
@@ -273,6 +351,11 @@ export function ManagerDashboard() {
                 </span>
               </div>
             ))}
+            {displayedPoints.length === 0 && (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                Нет точек за выбранный период
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -314,7 +397,7 @@ function TripList({ trips, expandedTrip, setExpandedTrip }: { trips: (Trip & { w
   if (trips.length === 0) return <EmptyState icon={Route} text="Нет поездок" />;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 pb-4">
       {trips.map(trip => (
         <div key={trip.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <button
@@ -359,3 +442,4 @@ function TripList({ trips, expandedTrip, setExpandedTrip }: { trips: (Trip & { w
     </div>
   );
 }
+
