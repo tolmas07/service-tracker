@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import { usePoints } from '../../hooks/usePoints';
-import { ArrowLeft, ArrowRight, ArrowLeftRight, MapPin } from 'lucide-react';
+
 import { COST_PER_KM } from '../../types';
 
 export function ManualTripForm() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { data: points = [] } = usePoints();
+
 
   const today = new Date();
   const dateStr = today.toISOString().split('T')[0];
