@@ -294,7 +294,7 @@ export function ManualTripForm() {
                   <div className="p-1.5 bg-white/10 rounded-lg backdrop-blur-sm">
                     <Wallet size={18} className="text-blue-300" />
                   </div>
-                  <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider">Всего заработано</span>
+                  <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider">Сумма компенсации</span>
                 </div>
                 <div className="text-3xl font-extrabold tracking-tight mb-1">
                   {totalCompensation.toLocaleString()} <span className="text-lg text-blue-300 font-medium">UZS</span>

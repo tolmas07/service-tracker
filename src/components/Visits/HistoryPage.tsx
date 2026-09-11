@@ -36,6 +36,8 @@ function WorkTypeBadges({ workType }: { workType: string }) {
 
 export function HistoryPage() {
   const [filter, setFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const navigate = useNavigate();
 
   const { data: visits = [], isLoading: visitsLoading } = useQuery({
@@ -49,13 +51,18 @@ export function HistoryPage() {
     },
   });
 
-  const filteredVisits = filter
-    ? visits.filter((v) =>
-        v.work_type?.toLowerCase().includes(filter.toLowerCase()) ||
-        v.work_description?.toLowerCase().includes(filter.toLowerCase()) ||
-        v.point?.name?.toLowerCase().includes(filter.toLowerCase())
-      )
-    : visits;
+  const filteredVisits = visits.filter((v) => {
+    if (filter) {
+      const match = v.work_type?.toLowerCase().includes(filter.toLowerCase()) ||
+                    v.work_description?.toLowerCase().includes(filter.toLowerCase()) ||
+                    v.point?.name?.toLowerCase().includes(filter.toLowerCase());
+      if (!match) return false;
+    }
+    const d = new Date(v.visited_at);
+    if (dateFrom && d < new Date(dateFrom)) return false;
+    if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
 
   return (
     <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
@@ -63,11 +70,11 @@ export function HistoryPage() {
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
         <h2 className="text-lg font-bold text-gray-900">История отчетов</h2>
         <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-          {visits.length} шт
+          {filteredVisits.length} шт
         </span>
       </div>
 
-      <div className="p-3 bg-white border-b border-gray-100 shrink-0">
+      <div className="p-3 bg-white border-b border-gray-100 shrink-0 space-y-3">
         <input
           type="text"
           placeholder="Поиск по точке, типу работ..."
@@ -75,6 +82,21 @@ export function HistoryPage() {
           onChange={(e) => setFilter(e.target.value)}
           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow"
         />
+        
+        {/* Date Filter */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период с</label>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-medium text-gray-500 mb-1">Период по</label>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="self-end px-3 py-2 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Сброс</button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
