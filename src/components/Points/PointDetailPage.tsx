@@ -164,12 +164,14 @@ export function PointDetailPage() {
 
       {/* Action buttons */}
       <div className="p-4 shrink-0 space-y-2">
-        <Link
-          to={`/visits/new?point=${point.id}`}
-          className="block py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          + Новый отчёт
-        </Link>
+        {isWorker && (
+          <Link
+            to={`/visits/new?point=${point.id}`}
+            className="block py-3 bg-blue-600 text-white rounded-xl text-center font-medium hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            + Новый отчёт
+          </Link>
+        )}
 
         {isWorker && (
           <div className="flex gap-2">
