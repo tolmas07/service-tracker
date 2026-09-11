@@ -75,10 +75,7 @@ export function ManualTripForm() {
   return (
     <div className="flex-1 min-h-0 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded-lg">
-          <ArrowLeft size={20} className="text-gray-600" />
-        </button>
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-center shrink-0">
         <h2 className="text-lg font-bold text-gray-900">Добавить пробег вручную</h2>
       </div>
 

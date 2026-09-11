@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import imageCompression from 'browser-image-compression';
 import { useCreateVisit, useUploadPhoto, useVisitPhotos } from '../../hooks/useVisits';
 import { usePoints } from '../../hooks/usePoints';
 import { useAuthStore } from '../../stores/authStore';
@@ -149,6 +150,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
 
   const toggleType = (type: string) => {
@@ -171,9 +173,11 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
     e.preventDefault();
     if (!user || !pointId || selectedTypes.length === 0) return;
     setSubmitting(true);
+    setUploadProgress('Сохранение...');
 
     try {
       const workTypeStr = selectedTypes.join(', ');
+      let currentVisitId = initialData?.id;
 
       if (isEdit && onSave) {
         await onSave({
@@ -184,15 +188,6 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
           status_after: statusAfter || undefined,
           notes: notes || undefined,
         });
-
-        // Upload new photos in edit mode
-        for (const file of files) {
-          await uploadPhoto.mutateAsync({
-            visitId: initialData!.id,
-            file,
-            photoType: file.name.toLowerCase().includes('printer') ? 'printer' : 'pc',
-          });
-        }
       } else {
         const visit = await createVisit.mutateAsync({
           point_id: pointId,
@@ -203,14 +198,41 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
           notes: notes || undefined,
           visited_at: new Date().toISOString(),
         });
+        currentVisitId = visit.id;
+      }
 
-        for (const file of files) {
-          await uploadPhoto.mutateAsync({
-            visitId: visit.id,
-            file,
-            photoType: file.name.toLowerCase().includes('printer') ? 'printer' : 'pc',
-          });
-        }
+      if (files.length > 0 && currentVisitId) {
+        setUploadProgress('Сжатие фото...');
+        
+        const compressOptions = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1280,
+          useWebWorker: true,
+        };
+
+        const uploadPromises = files.map(async (file) => {
+          try {
+            const compressedFile = await imageCompression(file, compressOptions);
+            return uploadPhoto.mutateAsync({
+              visitId: currentVisitId!,
+              file: compressedFile,
+              photoType: file.name.toLowerCase().includes('printer') ? 'printer' : 'pc',
+            });
+          } catch (error) {
+            console.error('Ошибка сжатия или загрузки файла', error);
+            throw error;
+          }
+        });
+
+        setUploadProgress(`Загрузка фото (0 из ${files.length})...`);
+        
+        let completed = 0;
+        await Promise.all(
+          uploadPromises.map(p => p.then(() => {
+            completed++;
+            setUploadProgress(`Загрузка фото (${completed} из ${files.length})...`);
+          }))
+        );
       }
 
       queryClient.invalidateQueries({ queryKey: ['visits'] });
@@ -219,6 +241,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
       console.error('Error saving visit:', err);
     } finally {
       setSubmitting(false);
+      setUploadProgress('');
     }
   };
 
@@ -408,7 +431,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
             disabled={submitting || !pointId || selectedTypes.length === 0}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors shadow-sm"
           >
-            {submitting ? 'Сохранение...' : isEdit ? 'Сохранить изменения' : 'Сохранить отчёт'}
+            {submitting ? (uploadProgress || 'Сохранение...') : isEdit ? 'Сохранить изменения' : 'Сохранить отчёт'}
           </button>
         </div>
       </form>

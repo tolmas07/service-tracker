@@ -7,7 +7,6 @@ import { UpdateDialog } from './components/Layout/UpdateDialog';
 import { LoginPage } from './components/Auth/LoginPage';
 import { Header, BottomNav } from './components/Layout/Layout';
 import { MapView } from './components/Map/MapView';
-import { TripPage } from './components/Tracker/TripPage';
 import { HistoryPage } from './components/Visits/HistoryPage';
 import { VisitForm } from './components/Visits/VisitForm';
 import { EditVisitPage } from './components/Visits/EditVisitPage';
@@ -94,16 +93,6 @@ function App() {
           />
           <Route
             path="/trip"
-            element={
-              <WorkerOnlyRoute>
-                <AppLayout>
-                  <TripPage />
-                </AppLayout>
-              </WorkerOnlyRoute>
-            }
-          />
-          <Route
-            path="/trips/new"
             element={
               <WorkerOnlyRoute>
                 <AppLayout>
