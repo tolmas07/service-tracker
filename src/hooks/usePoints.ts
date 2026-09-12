@@ -1,18 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import type { Point, PointStatus } from '../types';
 
 export function usePoints() {
+  const user = useAuthStore((state) => state.user);
+
   return useQuery({
-    queryKey: ['points'],
+    queryKey: ['points', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('points')
         .select('*')
         .order('name');
+        
+      if (user?.role === 'worker') {
+        query = query.eq('worker_id', user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Point[];
     },
+    enabled: !!user,
   });
 }
 

@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 import type { Visit, Photo } from '../types';
 
 export function useVisits(pointId?: string) {
+  const user = useAuthStore((state) => state.user);
+
   return useQuery({
-    queryKey: ['visits', pointId],
+    queryKey: ['visits', pointId, user?.id],
     queryFn: async () => {
       let query = supabase
         .from('visits')
@@ -12,6 +15,9 @@ export function useVisits(pointId?: string) {
         .order('visited_at', { ascending: false });
 
       if (pointId) query = query.eq('point_id', pointId);
+      if (user?.role === 'worker') {
+        query = query.eq('worker_id', user.id);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
