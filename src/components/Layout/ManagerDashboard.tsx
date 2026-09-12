@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { Point, Trip, TripPoint, PointStatus } from '../../types';
+import type { Point, Trip, TripPoint } from '../../types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Route, MapPin, Ruler, Wallet, Users, BarChart3, Download } from 'lucide-react';
+import { useManagerStore } from '../../stores/managerStore';
 
-const statusColors: Record<PointStatus, string> = {
+const statusColors: Record<string, string> = {
   working: '#16a34a',
   not_working: '#dc2626',
   unknown: '#6b7280',
@@ -81,8 +82,8 @@ function TripRouteMap({ tripId }: { tripId: string }) {
 type Tab = 'overview' | 'trips' | 'points';
 
 export function ManagerDashboard() {
-  const [selectedWorker, setSelectedWorker] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const { selectedWorker, setSelectedWorker } = useManagerStore();
   const [expandedTrip, setExpandedTrip] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -91,7 +92,11 @@ export function ManagerDashboard() {
   const { data: workers = [] } = useQuery({
     queryKey: ['workers'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('*').eq('role', 'worker').order('full_name');
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'worker').order('full_name');
+      if (error) {
+        console.error('Error workers:', error);
+        alert('Ошибка загрузки сотрудников: ' + error.message);
+      }
       return data || [];
     },
   });
@@ -100,7 +105,8 @@ export function ManagerDashboard() {
   const { data: points = [] } = useQuery({
     queryKey: ['points'],
     queryFn: async () => {
-      const { data } = await supabase.from('points').select('*').order('name');
+      const { data, error } = await supabase.from('points').select('*').order('name');
+      if (error) alert('Ошибка загрузки точек: ' + error.message);
       return (data || []) as Point[];
     },
   });
@@ -122,7 +128,11 @@ export function ManagerDashboard() {
     queryFn: async () => {
       let q = supabase.from('trips').select('*, worker:profiles(full_name)').order('started_at', { ascending: false }).limit(100);
       if (selectedWorker !== 'all') q = q.eq('worker_id', selectedWorker);
-      const { data } = await q;
+      const { data, error } = await q;
+      if (error) {
+        console.error('Error trips:', error);
+        alert('Ошибка загрузки поездок: ' + error.message);
+      }
       return (data || []) as (Trip & { worker?: { full_name: string } })[];
     },
   });
@@ -137,9 +147,13 @@ export function ManagerDashboard() {
       })
     : trips;
 
-  // Filter points by date (must have a visit in that date range)
+  // Filter points by worker and date
+  const filteredByWorkerPoints = selectedWorker === 'all' 
+    ? points 
+    : points.filter(p => p.worker_id === selectedWorker);
+
   const displayedPoints = (dateFrom || dateTo)
-    ? points.filter(p => {
+    ? filteredByWorkerPoints.filter(p => {
         return visits.some(v => {
           if (v.point_id !== p.id) return false;
           const d = new Date(v.visited_at);
@@ -148,7 +162,7 @@ export function ManagerDashboard() {
           return true;
         });
       })
-    : points;
+    : filteredByWorkerPoints;
 
   const totalKm = filteredTrips.reduce((s, t) => s + (t.total_distance_m || 0) / 1000, 0);
   const totalCompensation = filteredTrips.reduce((s, t) => s + (t.compensation_uzs || 0), 0);

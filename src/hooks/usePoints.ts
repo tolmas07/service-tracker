@@ -3,11 +3,14 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import type { Point, PointStatus } from '../types';
 
+import { useManagerStore } from '../stores/managerStore';
+
 export function usePoints() {
   const user = useAuthStore((state) => state.user);
+  const selectedWorker = useManagerStore((state) => state.selectedWorker);
 
   return useQuery({
-    queryKey: ['points', user?.id],
+    queryKey: ['points', user?.id, selectedWorker],
     queryFn: async () => {
       let query = supabase
         .from('points')
@@ -16,6 +19,8 @@ export function usePoints() {
         
       if (user?.role === 'worker') {
         query = query.eq('worker_id', user.id);
+      } else if (user?.role === 'manager' && selectedWorker !== 'all') {
+        query = query.eq('worker_id', selectedWorker);
       }
 
       const { data, error } = await query;

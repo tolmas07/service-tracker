@@ -23,6 +23,7 @@
     "dexie": "^4.4.5",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.43.0",
+    "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.87.0",
