@@ -14,6 +14,7 @@ const workerLinks = [
 const managerLinks = [
   { to: '/manager', icon: BarChart3, label: 'Обзор' },
   { to: '/', icon: Map, label: 'Карта' },
+  { to: '/manager/visits', icon: ClipboardList, label: 'Отчеты' },
 ];
 
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {

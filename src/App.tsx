@@ -12,6 +12,7 @@ import { VisitForm } from './components/Visits/VisitForm';
 import { EditVisitPage } from './components/Visits/EditVisitPage';
 import { PointDetailPage } from './components/Points/PointDetailPage';
 import { ManagerDashboard } from './components/Layout/ManagerDashboard';
+import { ManagerVisitsPage } from './components/Layout/ManagerVisitsPage';
 import { ManualTripForm } from './components/Tracker/ManualTripForm';
 import { useSearchParams } from 'react-router-dom';
 
@@ -147,6 +148,16 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <ManagerDashboard />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/visits"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ManagerVisitsPage />
                 </AppLayout>
               </ProtectedRoute>
             }

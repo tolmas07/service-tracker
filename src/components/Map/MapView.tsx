@@ -5,7 +5,7 @@ import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDel
 import { useAuthStore } from '../../stores/authStore';
 import type { Point, PointStatus } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Locate, Pencil, Trash2, Navigation, Check } from 'lucide-react';
+import { Plus, X, Locate, Pencil, Trash2, Navigation, Check, ClipboardList } from 'lucide-react';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -290,12 +290,20 @@ export function MapView() {
                 )}
 
                 {!isWorker && (
-                  <button
-                    onClick={() => navigate(`/points/${point.id}`)}
-                    className="w-full mt-2 text-xs text-blue-600 py-1.5 hover:bg-blue-50 rounded-lg transition-colors font-medium"
-                  >
-                    Подробнее →
-                  </button>
+                  <div className="flex gap-1.5 mt-2">
+                    <button
+                      onClick={() => navigate(`/points/${point.id}`)}
+                      className="flex-1 text-xs text-blue-600 py-1.5 bg-blue-50/50 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                    >
+                      Детали
+                    </button>
+                    <button
+                      onClick={() => navigate(`/manager/visits?pointName=${encodeURIComponent(point.name)}`)}
+                      className="flex-1 text-xs text-purple-600 py-1.5 bg-purple-50/50 hover:bg-purple-50 rounded-lg transition-colors font-medium flex items-center justify-center gap-1"
+                    >
+                      <ClipboardList size={12} /> Отчеты
+                    </button>
+                  </div>
                 )}
               </div>
             </Popup>
