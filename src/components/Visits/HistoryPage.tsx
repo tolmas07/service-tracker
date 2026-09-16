@@ -153,7 +153,7 @@ export function HistoryPage() {
                       <Calendar size={12} />
                       {format(new Date(visit.visited_at), 'dd MMM, HH:mm', { locale: ru })}
                     </div>
-                    <div className="flex items-center mt-1 gap-1">
+                    <div className="flex flex-col mt-1 gap-1 items-end">
                       <button
                         onClick={() => navigate(`/visits/${visit.id}/edit`)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium border border-transparent hover:border-blue-100"
@@ -166,7 +166,6 @@ export function HistoryPage() {
                           try {
                             const { error } = await supabase.from('visits').delete().eq('id', visit.id);
                             if (error) throw error;
-                            // Optionally trigger a refetch if we had access to queryClient, or let it reload
                             window.location.reload();
                           } catch (e: any) {
                             alert('Ошибка при удалении: ' + e.message);
