@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Wrench, MapPin, Pencil } from 'lucide-react';
+import { Calendar, Wrench, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { Visit } from '../../types';
 
 const statusLabels: Record<string, string> = {
@@ -153,12 +153,30 @@ export function HistoryPage() {
                       <Calendar size={12} />
                       {format(new Date(visit.visited_at), 'dd MMM, HH:mm', { locale: ru })}
                     </div>
-                    <button
-                      onClick={() => navigate(`/visits/${visit.id}/edit`)}
-                      className="mt-1 flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium border border-transparent hover:border-blue-100"
-                    >
-                      <Pencil size={12} /> Изменить
-                    </button>
+                    <div className="flex items-center mt-1 gap-1">
+                      <button
+                        onClick={() => navigate(`/visits/${visit.id}/edit`)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors font-medium border border-transparent hover:border-blue-100"
+                      >
+                        <Pencil size={12} /> Изменить
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Вы уверены, что хотите удалить этот отчет?')) return;
+                          try {
+                            const { error } = await supabase.from('visits').delete().eq('id', visit.id);
+                            if (error) throw error;
+                            // Optionally trigger a refetch if we had access to queryClient, or let it reload
+                            window.location.reload();
+                          } catch (e: any) {
+                            alert('Ошибка при удалении: ' + e.message);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors font-medium border border-transparent hover:border-red-100"
+                      >
+                        <Trash2 size={12} /> Удалить
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
