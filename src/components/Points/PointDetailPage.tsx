@@ -160,6 +160,52 @@ export function PointDetailPage() {
           <MapPin size={12} className="text-gray-400" />
           <span className="text-xs text-gray-400">{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</span>
         </div>
+
+        {/* Телеметрия принтера и расходников */}
+        {(point.ribbon_level != null || point.film_level != null || point.last_seen) && (
+          <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-gray-800">
+              <span className="flex items-center gap-1.5">
+                🖨 Принтер {point.printer_model || 'XID8300'}
+              </span>
+              {point.last_seen && (
+                <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  ● Онлайн ({format(new Date(point.last_seen), 'dd.MM HH:mm')})
+                </span>
+              )}
+            </div>
+
+            {point.ribbon_level != null && (
+              <div>
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>Цветная лента (YMCK)</span>
+                  <span className="font-bold text-gray-900">{point.ribbon_level}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-2 rounded-full transition-all ${point.ribbon_level <= 15 ? 'bg-red-500' : point.ribbon_level <= 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(100, Math.max(0, point.ribbon_level))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {point.film_level != null && (
+              <div>
+                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>Ретрансферная пленка</span>
+                  <span className="font-bold text-gray-900">{point.film_level}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-2 rounded-full transition-all ${point.film_level <= 15 ? 'bg-red-500' : point.film_level <= 30 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                    style={{ width: `${Math.min(100, Math.max(0, point.film_level))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}

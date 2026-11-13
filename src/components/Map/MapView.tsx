@@ -208,6 +208,50 @@ export function MapView() {
                   <p className="text-[11px] text-gray-500 mt-1.5">{point.notes}</p>
                 )}
 
+                {/* Телеметрия принтера и расходников */}
+                {(point.ribbon_level != null || point.film_level != null || point.last_seen) && (
+                  <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-[11px] space-y-1.5">
+                    <div className="flex items-center justify-between font-medium text-gray-700">
+                      <span>Принтер {point.printer_model || 'XID8300'}</span>
+                      {point.last_seen && (
+                        <span className="text-[10px] text-emerald-600 font-semibold">
+                          ● Онлайн
+                        </span>
+                      )}
+                    </div>
+
+                    {point.ribbon_level != null && (
+                      <div>
+                        <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                          <span>Цветная лента</span>
+                          <span className="font-semibold text-gray-800">{point.ribbon_level}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full ${point.ribbon_level <= 15 ? 'bg-red-500' : point.ribbon_level <= 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            style={{ width: `${Math.min(100, Math.max(0, point.ribbon_level))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {point.film_level != null && (
+                      <div>
+                        <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                          <span>Ретрансферная пленка</span>
+                          <span className="font-semibold text-gray-800">{point.film_level}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full ${point.film_level <= 15 ? 'bg-red-500' : point.film_level <= 30 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(100, Math.max(0, point.film_level))}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center gap-1.5 mt-2">
                   <span className="text-[10px] text-gray-400">
                     {point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}

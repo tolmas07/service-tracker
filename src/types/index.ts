@@ -22,6 +22,10 @@ export interface Point {
   worker_id: string;
   created_at: string;
   updated_at: string;
+  ribbon_level?: number | null;
+  film_level?: number | null;
+  last_seen?: string | null;
+  printer_model?: string | null;
 }
 
 export interface Trip {
