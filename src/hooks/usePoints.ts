@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
@@ -8,6 +9,35 @@ import { useManagerStore } from '../stores/managerStore';
 export function usePoints() {
   const user = useAuthStore((state) => state.user);
   const selectedWorker = useManagerStore((state) => state.selectedWorker);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Подписка на Realtime обновления точек в реальном времени
+    const channel = supabase
+      .channel('points-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'points' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            queryClient.setQueryData<Point[]>(['points', user?.id, selectedWorker], (old) => {
+              if (!old) return old;
+              return old.map((p) => (p.id === payload.new.id ? { ...p, ...payload.new } : p));
+            });
+            queryClient.setQueryData<Point>(['points', payload.new.id], (old) => {
+              return old ? { ...old, ...payload.new } : (payload.new as Point);
+            });
+          } else {
+            queryClient.invalidateQueries({ queryKey: ['points'] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id, selectedWorker]);
 
   return useQuery({
     queryKey: ['points', user?.id, selectedWorker],

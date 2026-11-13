@@ -170,18 +170,20 @@ export function PointDetailPage() {
               </span>
               {(() => {
                 if (!point.last_seen) return null;
-                const diffMin = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 60000);
-                const isOnline = diffMin <= 30;
+                const diffSec = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 1000);
+                const isOnline = diffSec <= 150;
+                const timeStr = format(new Date(point.last_seen), 'dd.MM.yyyy HH:mm:ss');
+
                 return (
                   <span
-                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
                       isOnline
                         ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                         : 'text-gray-600 bg-gray-100 border-gray-200'
                     }`}
                   >
                     <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                    {isOnline ? 'В сети' : 'Не в сети'} ({format(new Date(point.last_seen), 'dd.MM HH:mm')})
+                    {isOnline ? 'В сети' : 'Не в сети'} • Посл. активность: {timeStr}
                   </span>
                 );
               })()}

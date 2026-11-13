@@ -215,17 +215,24 @@ export function MapView() {
                       <span>Принтер {point.printer_model || 'XID8300'}</span>
                       {(() => {
                         if (!point.last_seen) return null;
-                        const diffMin = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 60000);
-                        const isOnline = diffMin <= 30;
+                        const diffSec = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 1000);
+                        const isOnline = diffSec <= 150; // В сети, если сигнал был в пределах 2.5 минут
+                        const timeStr = new Date(point.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const dateStr = new Date(point.last_seen).toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
                         return (
                           <span
                             className={`text-[10px] font-semibold flex items-center gap-1 ${
                               isOnline ? 'text-emerald-600' : 'text-gray-400'
                             }`}
-                            title={`Был в сети: ${new Date(point.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                            title={`Последний сигнал: ${dateStr} ${timeStr}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                            {isOnline ? 'В сети' : diffMin < 60 ? `${diffMin} мин назад` : `${Math.round(diffMin / 60)} ч назад`}
+                            {isOnline
+                              ? 'В сети'
+                              : diffSec < 3600
+                              ? `${Math.round(diffSec / 60)} мин назад`
+                              : `${dateStr} ${timeStr}`}
                           </span>
                         );
                       })()}
