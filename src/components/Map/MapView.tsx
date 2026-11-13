@@ -213,11 +213,22 @@ export function MapView() {
                   <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-[11px] space-y-1.5">
                     <div className="flex items-center justify-between font-medium text-gray-700">
                       <span>Принтер {point.printer_model || 'XID8300'}</span>
-                      {point.last_seen && (
-                        <span className="text-[10px] text-emerald-600 font-semibold">
-                          ● Онлайн
-                        </span>
-                      )}
+                      {(() => {
+                        if (!point.last_seen) return null;
+                        const diffMin = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 60000);
+                        const isOnline = diffMin <= 30;
+                        return (
+                          <span
+                            className={`text-[10px] font-semibold flex items-center gap-1 ${
+                              isOnline ? 'text-emerald-600' : 'text-gray-400'
+                            }`}
+                            title={`Был в сети: ${new Date(point.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                            {isOnline ? 'В сети' : diffMin < 60 ? `${diffMin} мин назад` : `${Math.round(diffMin / 60)} ч назад`}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {point.ribbon_level != null && (

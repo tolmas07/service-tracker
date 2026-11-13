@@ -168,11 +168,23 @@ export function PointDetailPage() {
               <span className="flex items-center gap-1.5">
                 🖨 Принтер {point.printer_model || 'XID8300'}
               </span>
-              {point.last_seen && (
-                <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  ● Онлайн ({format(new Date(point.last_seen), 'dd.MM HH:mm')})
-                </span>
-              )}
+              {(() => {
+                if (!point.last_seen) return null;
+                const diffMin = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 60000);
+                const isOnline = diffMin <= 30;
+                return (
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                      isOnline
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        : 'text-gray-600 bg-gray-100 border-gray-200'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                    {isOnline ? 'В сети' : 'Не в сети'} ({format(new Date(point.last_seen), 'dd.MM HH:mm')})
+                  </span>
+                );
+              })()}
             </div>
 
             {point.ribbon_level != null && (
