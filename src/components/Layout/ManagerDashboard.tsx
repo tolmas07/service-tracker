@@ -352,6 +352,16 @@ export function ManagerDashboard() {
                   <div className="text-sm font-medium text-gray-900 truncate">{point.name}</div>
                   {point.address && <div className="text-[11px] text-gray-400 truncate">{point.address}</div>}
                   {point.notes && <div className="text-[10px] text-gray-400 truncate mt-0.5">{point.notes}</div>}
+                  {(point.ribbon_level != null || point.film_level != null) && (
+                    <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500">
+                      {point.ribbon_level != null && (
+                        <span>🎨 Лента: <strong className={point.ribbon_level <= 20 ? 'text-red-600' : 'text-emerald-600'}>{point.ribbon_level}%</strong></span>
+                      )}
+                      {point.film_level != null && (
+                        <span>🎞️ Пленка: <strong className={point.film_level <= 20 ? 'text-red-600' : 'text-blue-600'}>{point.film_level}%</strong></span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusBadge[point.status] || 'bg-gray-100 text-gray-600'}`}>
                   {statusLabels[point.status] || point.status}

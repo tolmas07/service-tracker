@@ -76,6 +76,63 @@ src/
 | worker | CRUD точек, GPS трекер, отчёты, фото (вкл. удаление), удаление |
 | manager | Read-only: карта, маршруты, статистика |
 
+## Добавление пользователей и импорт точек (Руководство для ИИ-агента)
+
+### 1. Архитектура изоляции данных (Per-Worker)
+* **Пользователи**: хранятся в `auth.users` Supabase.
+* **Профили**: таблица `profiles` (`id` = `auth.users.id`, `full_name`, `role`: `'worker'` | `'manager'`).
+* **Точки**: таблица `points` имеет поле `worker_id UUID REFERENCES profiles(id)`.
+* **Правило видимости**:
+  * Сотрудник (`worker`) видит в приложении **только свои точки** (`points.worker_id = auth.uid()`) и свои поездки/отчёты.
+  * Руководитель (`manager`) видит все точки с возможностью фильтрации по сотрудникам.
+
+### 2. Текущие учетные записи и регионы (в базе)
+| ФИО / Название | Email | Роль | Регион / Описание |
+|----------------|-------|------|-------------------|
+| `tolmasbek murtazoev` | `tolmasofficial@gmail.com` | `worker` | Самарканд, Сырдарья, Джизак |
+| `Тестовый Руководитель` | `manager@test.com` | `manager` | Панель руководителя |
+| `Javlon` | `javlon@uzmulk.uz` | `worker` | Андижан, Наманган, Фергана |
+| `Сотрудник (Бухоро и Навои)` | `buxoro_navoiy@tracker.uz` | `worker` | Бухара и Навои |
+| `Сотрудник (Қашқадарё ва Сурхондарё)` | `qashqa_surxon@tracker.uz` | `worker` | Кашкадарья и Сурхандарья |
+*Стандартный пароль для технических учеток: `Tolmas2003!!`*
+
+### 3. Алгоритм создания нового пользователя и импорта точек
+Поскольку регистрация через форму в приложении отключена, добавление выполняется через Node.js скрипт (примеры в `scratch/import_*.mjs`):
+
+1. **Создание в Supabase Auth & подтверждение Email:**
+   ```javascript
+   const { data, error } = await supabase.auth.signUp({ email, password });
+   // Обязательно подтвердить email в PostgreSQL, иначе вход будет заблокирован:
+   await pgClient.query('UPDATE auth.users SET email_confirmed_at = now() WHERE id = $1', [userId]);
+   ```
+2. **Создание профиля:**
+   ```sql
+   INSERT INTO profiles (id, full_name, role)
+   VALUES ($1, $2, 'worker')
+   ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role;
+   ```
+3. **Парсинг точек из Excel (`xlsx`):**
+   * **Колонки файлов кадастра:**
+     * Краткое имя: `Худудий бошқармалар туман шаҳар номи`
+     * Полное/официальное имя: `Расмий номи` (сохранять в `points.name`)
+     * Адрес: `Манзили` (сохранять в `points.address`)
+     * Координаты: `Локацияси линки`
+   * **Форматы координат в файлах:**
+     * Десятичные: `38.174344, 67.729844`
+     * DMS (градусы/минуты/секунды): `38°49'52.12"N 65°46'59.42"E` или с кириллицей `37°12'52.51"С  67°16'24.59"В` (С = Север, В = Восток).
+     * Конвертация в десятичные: `deg + min/60 + sec/3600`.
+   * **Вставка в базу:**
+     ```sql
+     INSERT INTO points (name, address, latitude, longitude, status, worker_id)
+     VALUES ($1, $2, $3, $4, 'unknown', $workerId);
+     ```
+
+### 4. Подключение к БД для скриптов
+* **PostgreSQL Direct / Pooler:**
+  `postgresql://postgres.cdjnuvdxcmyyatocrkzq:Tolmas2003%21%21@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres`
+* **Supabase Client:** URL и Anon key брать из `.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+
+
 ## Ключевые решения
 - **GPS офлайн-first**: поездка создаётся локально через `crypto.randomUUID()`, GPS стартует мгновенно, синхронизируется с Supabase в фоне. `flushBuffer` создаёт поездку на сервере если её нет.
 - **IndexedDB буфер**: GPS точки сохраняются в IndexedDB через Dexie перед отправкой на сервер. Переживают краш и потерю интернета.
