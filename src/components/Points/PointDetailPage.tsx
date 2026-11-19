@@ -166,7 +166,16 @@ export function PointDetailPage() {
           <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-gray-800">
               <span className="flex items-center gap-1.5">
-                🖨 Принтер {point.printer_model || 'XID8300'}
+                🖨 Принтер {point.printer_model ? point.printer_model.split('[')[0].trim() : 'XID8300'}
+                {point.printer_model && point.printer_model.includes('[') && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    point.printer_model.includes('Готов') ? 'bg-emerald-100 text-emerald-800' :
+                    point.printer_model.includes('греется') ? 'bg-amber-100 text-amber-800' :
+                    point.printer_model.includes('карту') ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {point.printer_model.substring(point.printer_model.indexOf('[') + 1, point.printer_model.indexOf(']'))}
+                  </span>
+                )}
               </span>
               {(() => {
                 if (!point.last_seen) return null;

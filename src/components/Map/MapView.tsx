@@ -212,7 +212,18 @@ export function MapView() {
                 {(point.ribbon_level != null || point.film_level != null || point.last_seen) && (
                   <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-[11px] space-y-1.5">
                     <div className="flex items-center justify-between font-medium text-gray-700">
-                      <span>Принтер {point.printer_model || 'XID8300'}</span>
+                      <div className="flex flex-col">
+                        <span>Принтер {point.printer_model ? point.printer_model.split('[')[0].trim() : 'XID8300'}</span>
+                        {point.printer_model && point.printer_model.includes('[') && (
+                          <span className={`text-[10px] font-semibold ${
+                            point.printer_model.includes('Готов') ? 'text-emerald-600' :
+                            point.printer_model.includes('греется') ? 'text-amber-600' :
+                            point.printer_model.includes('карту') ? 'text-blue-600' : 'text-red-600'
+                          }`}>
+                            ● {point.printer_model.substring(point.printer_model.indexOf('[') + 1, point.printer_model.indexOf(']'))}
+                          </span>
+                        )}
+                      </div>
                       {(() => {
                         if (!point.last_seen) return null;
                         const diffSec = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 1000);

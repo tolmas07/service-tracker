@@ -26,6 +26,7 @@ export interface Point {
   film_level?: number | null;
   last_seen?: string | null;
   printer_model?: string | null;
+  printer_status_text?: string | null;
 }
 
 export interface Trip {
