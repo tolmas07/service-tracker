@@ -17,6 +17,7 @@ const ManagerDashboard = lazy(() => import('./components/Layout/ManagerDashboard
 const ManagerVisitsPage = lazy(() => import('./components/Layout/ManagerVisitsPage').then((m) => ({ default: m.ManagerVisitsPage })));
 const ManualTripForm = lazy(() => import('./components/Tracker/ManualTripForm').then((m) => ({ default: m.ManualTripForm })));
 const PrintReportPage = lazy(() => import('./components/Reports/PrintReportPage').then((m) => ({ default: m.PrintReportPage })));
+const ResetOrderPage = lazy(() => import('./components/Reset/ResetOrderPage').then((m) => ({ default: m.ResetOrderPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,16 @@ function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <PrintReportPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reset"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ResetOrderPage />
                 </AppLayout>
               </ProtectedRoute>
             }
