@@ -42,6 +42,7 @@ interface VisitFormProps {
     work_description?: string;
     status_after?: string;
     notes?: string;
+    visited_at?: string;
   };
   onSave?: (data: Record<string, string | undefined>) => Promise<void>;
 }
@@ -141,6 +142,14 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
   const isEdit = !!initialData;
 
   const [pointId, setPointId] = useState(initialData?.point_id || initialPointId || '');
+  const [visitDate, setVisitDate] = useState(() => {
+    const d = initialData?.visited_at ? new Date(initialData.visited_at) : new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [visitTime, setVisitTime] = useState(() => {
+    const d = initialData?.visited_at ? new Date(initialData.visited_at) : new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  });
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>(
     initialData?.work_type ? initialData.work_type.split(',').map(s => s.trim()) : []
@@ -177,6 +186,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
 
     try {
       const workTypeStr = selectedTypes.join(', ');
+      const visitedAtIso = new Date(`${visitDate}T${visitTime || '12:00'}:00`).toISOString();
       let currentVisitId = initialData?.id;
 
       if (isEdit && onSave) {
@@ -187,6 +197,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
           work_description: description || undefined,
           status_after: statusAfter || undefined,
           notes: notes || undefined,
+          visited_at: visitedAtIso,
         });
       } else {
         const visit = await createVisit.mutateAsync({
@@ -196,7 +207,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
           work_description: description || undefined,
           status_after: (statusAfter || undefined) as Visit['status_after'],
           notes: notes || undefined,
-          visited_at: new Date().toISOString(),
+          visited_at: visitedAtIso,
         });
         currentVisitId = visit.id;
       }
@@ -236,6 +247,7 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
       }
 
       queryClient.invalidateQueries({ queryKey: ['visits'] });
+      queryClient.invalidateQueries({ queryKey: ['last-visits-by-point'] });
       navigate('/history');
     } catch (err) {
       console.error('Error saving visit:', err);
@@ -311,6 +323,31 @@ export function VisitForm({ pointId: initialPointId, initialData, onSave }: Visi
               selectedPointId={pointId}
             />
           )}
+
+          {/* Visit Date & Time */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Дата и время визита *</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <input
+                  type="date"
+                  value={visitDate}
+                  onChange={(e) => setVisitDate(e.target.value)}
+                  required
+                  className="w-full min-w-0 max-w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div className="min-w-0">
+                <input
+                  type="time"
+                  value={visitTime}
+                  onChange={(e) => setVisitTime(e.target.value)}
+                  required
+                  className="w-full min-w-0 max-w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Work types — multi-select */}
           <div>

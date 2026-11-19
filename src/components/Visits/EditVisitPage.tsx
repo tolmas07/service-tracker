@@ -38,6 +38,7 @@ export function EditVisitPage() {
       work_description: data.work_description,
       status_after: data.status_after as Visit['status_after'],
       notes: data.notes,
+      visited_at: data.visited_at,
     });
   };
 
@@ -51,6 +52,7 @@ export function EditVisitPage() {
         work_description: visit.work_description,
         status_after: visit.status_after,
         notes: visit.notes,
+        visited_at: visit.visited_at,
       }}
       onSave={handleSave}
     />
