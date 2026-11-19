@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDeletePoint } from '../../hooks/usePoints';
+import { usePrintSummary30d, useLastVisitsByPoint, getVisitAgeInfo } from '../../hooks/usePrintStats';
 import { useAuthStore } from '../../stores/authStore';
 import type { Point, PointStatus } from '../../types';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Locate, Pencil, Trash2, Navigation, Check, ClipboardList } from 'lucide-react';
+import { Plus, X, Locate, Pencil, Trash2, Navigation, Check, ClipboardList, Route as RouteIcon, Clock, Sparkles, Printer } from 'lucide-react';
 
 // Fix Leaflet default icon
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -27,14 +28,31 @@ const statusLabels: Record<PointStatus, string> = {
   unknown: 'Неизвестно',
 };
 
-function createIcon(color: string) {
-  return L.divIcon({
+// Icon cache to avoid recreating Leaflet DivIcons on every render
+const iconCache = new Map<string, L.DivIcon>();
+
+function getPointIcon(color: string, isOverdue: boolean, routeOrder: number | null) {
+  const key = `${color}_${isOverdue ? '1' : '0'}_${routeOrder ?? 'n'}`;
+  const cached = iconCache.get(key);
+  if (cached) return cached;
+
+  let html: string;
+  if (routeOrder !== null) {
+    html = `<div style="width:32px;height:32px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;border:3px solid white;border-radius:50%;box-shadow:0 3px 10px rgba(37,99,235,0.5)">${routeOrder}</div>`;
+  } else {
+    const ring = isOverdue ? 'box-shadow:0 0 0 3px #f59e0b,0 2px 8px rgba(0,0,0,0.3)' : 'box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+    html = `<div style="width:28px;height:28px;background:${color};border:3px solid white;border-radius:50%;${ring}"></div>`;
+  }
+
+  const icon = L.divIcon({
     className: '',
-    html: `<div style="width:28px;height:28px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    html,
+    iconSize: routeOrder !== null ? [32, 32] : [28, 28],
+    iconAnchor: routeOrder !== null ? [16, 16] : [14, 14],
     popupAnchor: [0, -16],
   });
+  iconCache.set(key, icon);
+  return icon;
 }
 
 const userIcon = L.divIcon({
@@ -43,6 +61,16 @@ const userIcon = L.divIcon({
   iconSize: [20, 20],
   iconAnchor: [10, 10],
 });
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // Component to fly map to a position
 function FlyTo({ position }: { position: [number, number] | null }) {
@@ -56,25 +84,33 @@ function FlyTo({ position }: { position: [number, number] | null }) {
 }
 
 // Blue dot on map
-function UserPositionMarker() {
+function UserPositionMarker({ onPosition }: { onPosition: (pos: [number, number]) => void }) {
   const [pos, setPos] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
     const watchId = navigator.geolocation.watchPosition(
-      (p) => setPos([p.coords.latitude, p.coords.longitude]),
+      (p) => {
+        const coords: [number, number] = [p.coords.latitude, p.coords.longitude];
+        setPos(coords);
+        onPosition(coords);
+      },
       () => {},
       { enableHighAccuracy: true, maximumAge: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [onPosition]);
 
   if (!pos) return null;
   return <Marker position={pos} icon={userIcon} />;
 }
 
+type MapFilter = 'all' | 'not_working' | 'overdue';
+
 export function MapView() {
   const { data: points = [] } = usePoints();
+  const { data: printSummary = {} } = usePrintSummary30d();
+  const { data: lastVisits = {} } = useLastVisitsByPoint();
   const createPoint = useCreatePoint();
   const updateStatus = useUpdatePointStatus();
   const updatePoint = useUpdatePoint();
@@ -88,8 +124,94 @@ export function MapView() {
   const [form, setForm] = useState({ name: '', lat: '', lng: '', address: '', notes: '' });
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const [filter, setFilter] = useState<MapFilter>('all');
 
-  // Geolocation — uses browser API directly, not Leaflet
+  // Route builder state
+  const [routeMode, setRouteMode] = useState(false);
+  const [routeIds, setRouteIds] = useState<string[]>([]);
+
+  const handleUserPos = useCallback((coords: [number, number]) => {
+    setUserPos(coords);
+  }, []);
+
+  const counts = useMemo(() => {
+    let working = 0;
+    let notWorking = 0;
+    let unknown = 0;
+    let overdue = 0;
+    for (const p of points) {
+      if (p.status === 'working') working++;
+      else if (p.status === 'not_working') notWorking++;
+      else unknown++;
+      if (getVisitAgeInfo(lastVisits[p.id]).isOverdue) overdue++;
+    }
+    return { working, notWorking, unknown, overdue };
+  }, [points, lastVisits]);
+
+  const visiblePoints = useMemo(() => {
+    if (filter === 'not_working') return points.filter((p) => p.status === 'not_working');
+    if (filter === 'overdue') return points.filter((p) => getVisitAgeInfo(lastVisits[p.id]).isOverdue);
+    return points;
+  }, [points, filter, lastVisits]);
+
+  const toggleRoutePoint = useCallback((pointId: string) => {
+    setRouteIds((prev) =>
+      prev.includes(pointId) ? prev.filter((id) => id !== pointId) : [...prev, pointId]
+    );
+  }, []);
+
+  const optimizeRouteOrder = useCallback(() => {
+    if (routeIds.length < 2) return;
+    const byId = new Map(points.map((p) => [p.id, p]));
+    const remaining = routeIds.map((id) => byId.get(id)).filter((p): p is Point => !!p);
+    if (remaining.length < 2) return;
+
+    const ordered: Point[] = [];
+    let curLat = userPos ? userPos[0] : remaining[0].latitude;
+    let curLng = userPos ? userPos[1] : remaining[0].longitude;
+
+    if (!userPos) {
+      ordered.push(remaining.shift()!);
+    }
+
+    while (remaining.length > 0) {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const d = haversineKm(curLat, curLng, remaining[i].latitude, remaining[i].longitude);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      }
+      const next = remaining.splice(bestIdx, 1)[0];
+      ordered.push(next);
+      curLat = next.latitude;
+      curLng = next.longitude;
+    }
+
+    setRouteIds(ordered.map((p) => p.id));
+  }, [routeIds, points, userPos]);
+
+  const openYandexRoute = useCallback(() => {
+    const byId = new Map(points.map((p) => [p.id, p]));
+    const stops = routeIds
+      .map((id) => byId.get(id))
+      .filter((p): p is Point => !!p)
+      .map((p) => `${p.latitude},${p.longitude}`);
+
+    if (stops.length === 0) return;
+
+    const rtext = userPos
+      ? `${userPos[0]},${userPos[1]}~${stops.join('~')}`
+      : stops.length === 1
+      ? `~${stops[0]}`
+      : stops.join('~');
+
+    window.open(`https://yandex.uz/maps/?rtext=${rtext}&rtt=auto`, '_blank', 'noopener,noreferrer');
+  }, [routeIds, points, userPos]);
+
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) {
       alert('Геолокация не поддерживается вашим браузером');
@@ -99,6 +221,7 @@ export function MapView() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setUserPos(coords);
         setFlyTo(coords);
         setLocating(false);
       },
@@ -179,247 +302,364 @@ export function MapView() {
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <UserPositionMarker />
+        <UserPositionMarker onPosition={handleUserPos} />
         <FlyTo position={flyTo} />
 
-        {points.map((point) => (
-          <Marker
-            key={point.id}
-            position={[point.latitude, point.longitude]}
-            icon={createIcon(statusColors[point.status])}
-          >
-            <Popup maxWidth={280} minWidth={220}>
-              <div className="p-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-sm text-gray-900 leading-tight">{point.name}</h3>
-                    {point.address && <p className="text-xs text-gray-500 mt-0.5 break-words">{point.address}</p>}
-                  </div>
-                  <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    point.status === 'working' ? 'bg-green-100 text-green-700' :
-                    point.status === 'not_working' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {statusLabels[point.status]}
-                  </span>
-                </div>
+        {visiblePoints.map((point) => {
+          const visitInfo = getVisitAgeInfo(lastVisits[point.id]);
+          const printInfo = printSummary[point.id];
+          const routeIdx = routeIds.indexOf(point.id);
+          const routeOrder = routeIdx >= 0 ? routeIdx + 1 : null;
 
-                {point.notes && (
-                  <p className="text-[11px] text-gray-500 mt-1.5">{point.notes}</p>
-                )}
+          return (
+            <Marker
+              key={point.id}
+              position={[point.latitude, point.longitude]}
+              icon={getPointIcon(statusColors[point.status], visitInfo.isOverdue, routeOrder)}
+              eventHandlers={
+                routeMode
+                  ? {
+                      click: () => toggleRoutePoint(point.id),
+                    }
+                  : undefined
+              }
+            >
+              {!routeMode && (
+                <Popup maxWidth={290} minWidth={230}>
+                  <div className="p-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-sm text-gray-900 leading-tight">{point.name}</h3>
+                        {point.address && <p className="text-xs text-gray-500 mt-0.5 break-words">{point.address}</p>}
+                      </div>
+                      <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        point.status === 'working' ? 'bg-green-100 text-green-700' :
+                        point.status === 'not_working' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {statusLabels[point.status]}
+                      </span>
+                    </div>
 
-                {/* Телеметрия принтера и расходников */}
-                {(point.ribbon_level != null || point.film_level != null || point.last_seen) && (
-                  <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-[11px] space-y-1.5">
-                    <div className="flex items-center justify-between font-medium text-gray-700">
-                      <div className="flex flex-col">
-                        <span>Принтер {point.printer_model ? point.printer_model.split('[')[0].trim() : 'XID8300'}</span>
-                        {point.printer_model && point.printer_model.includes('[') && (
-                          <span className={`text-[10px] font-semibold ${
-                            point.printer_model.includes('Готов') ? 'text-emerald-600' :
-                            point.printer_model.includes('греется') ? 'text-amber-600' :
-                            point.printer_model.includes('карту') ? 'text-blue-600' : 'text-red-600'
-                          }`}>
-                            ● {point.printer_model.substring(point.printer_model.indexOf('[') + 1, point.printer_model.indexOf(']'))}
-                          </span>
+                    {point.notes && (
+                      <p className="text-[11px] text-gray-500 mt-1.5">{point.notes}</p>
+                    )}
+
+                    {/* Last visit reminder (2-month cycle) */}
+                    <div className={`mt-2 px-2 py-1.5 rounded-lg text-[11px] flex items-center justify-between gap-2 ${
+                      visitInfo.isOverdue
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
+                        : 'bg-gray-50 text-gray-600 border border-gray-100'
+                    }`}>
+                      <span className="flex items-center gap-1 font-medium">
+                        <Clock size={12} className={visitInfo.isOverdue ? 'text-amber-600' : 'text-gray-400'} />
+                        Посл. визит:
+                      </span>
+                      <span className="font-semibold">
+                        {visitInfo.isOverdue ? `⚠️ ${visitInfo.label}` : visitInfo.label}
+                      </span>
+                    </div>
+
+                    {/* Телеметрия принтера, расходников и печати */}
+                    {(point.ribbon_level != null || point.film_level != null || point.last_seen || printInfo) && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-100 text-[11px] space-y-1.5">
+                        <div className="flex items-center justify-between font-medium text-gray-700">
+                          <div className="flex flex-col">
+                            <span>Принтер {point.printer_model ? point.printer_model.split('[')[0].trim() : 'XID8300'}</span>
+                            {point.printer_model && point.printer_model.includes('[') && (
+                              <span className={`text-[10px] font-semibold ${
+                                point.printer_model.includes('Готов') ? 'text-emerald-600' :
+                                point.printer_model.includes('греется') ? 'text-amber-600' :
+                                point.printer_model.includes('карту') ? 'text-blue-600' : 'text-red-600'
+                              }`}>
+                                ● {point.printer_model.substring(point.printer_model.indexOf('[') + 1, point.printer_model.indexOf(']'))}
+                              </span>
+                            )}
+                          </div>
+                          {(() => {
+                            if (!point.last_seen) return null;
+                            const diffSec = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 1000);
+                            const isOnline = diffSec <= 150;
+                            const timeStr = new Date(point.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const dateStr = new Date(point.last_seen).toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+
+                            return (
+                              <span
+                                className={`text-[10px] font-semibold flex items-center gap-1 ${
+                                  isOnline ? 'text-emerald-600' : 'text-gray-400'
+                                }`}
+                                title={`Последний сигнал: ${dateStr} ${timeStr}`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                                {isOnline
+                                  ? 'В сети'
+                                  : diffSec < 3600
+                                  ? `${Math.round(diffSec / 60)} мин назад`
+                                  : `${dateStr} ${timeStr}`}
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        {point.ribbon_level != null && (
+                          <div>
+                            <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                              <span>Цветная лента</span>
+                              <span className="font-semibold text-gray-800">{point.ribbon_level}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-1.5 rounded-full ${point.ribbon_level <= 15 ? 'bg-red-500' : point.ribbon_level <= 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                style={{ width: `${Math.min(100, Math.max(0, point.ribbon_level))}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {point.film_level != null && (
+                          <div>
+                            <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                              <span>Ретрансферная пленка</span>
+                              <span className="font-semibold text-gray-800">{point.film_level}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-1.5 rounded-full ${point.film_level <= 15 ? 'bg-red-500' : point.film_level <= 30 ? 'bg-amber-500' : 'bg-blue-500'}`}
+                                style={{ width: `${Math.min(100, Math.max(0, point.film_level))}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {printInfo && (
+                          <div className="pt-1 border-t border-gray-200/70 flex items-center justify-between text-[10px] text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <Printer size={11} className="text-blue-500" /> За 30 дн.:
+                            </span>
+                            <span className="font-semibold text-gray-900">
+                              {printInfo.last30d} карт{printInfo.today > 0 ? ` (сегодня: ${printInfo.today})` : ''}
+                            </span>
+                          </div>
                         )}
                       </div>
-                      {(() => {
-                        if (!point.last_seen) return null;
-                        const diffSec = Math.round((Date.now() - new Date(point.last_seen).getTime()) / 1000);
-                        const isOnline = diffSec <= 150; // В сети, если сигнал был в пределах 2.5 минут
-                        const timeStr = new Date(point.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        const dateStr = new Date(point.last_seen).toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+                    )}
 
-                        return (
-                          <span
-                            className={`text-[10px] font-semibold flex items-center gap-1 ${
-                              isOnline ? 'text-emerald-600' : 'text-gray-400'
+                    {/* Navigation buttons */}
+                    <div className="flex gap-1.5 mt-2.5">
+                      <a
+                        href={`https://yandex.uz/maps/?rtext=~${point.latitude},${point.longitude}&rtt=auto`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-xs px-2 py-2 bg-yellow-50 text-yellow-800 rounded-lg hover:bg-yellow-100 transition-colors font-medium flex items-center justify-center gap-1.5"
+                      >
+                        <Navigation size={14} /> Яндекс
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-xs px-2 py-2 bg-green-50 text-green-800 rounded-lg hover:bg-green-100 transition-colors font-medium flex items-center justify-center gap-1.5"
+                      >
+                        <Navigation size={14} /> Google
+                      </a>
+                    </div>
+
+                    {isWorker && (
+                      <>
+                        <div className="flex gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              updateStatus.mutate({ id: point.id, status: 'working' });
+                            }}
+                            disabled={updateStatus.isPending}
+                            className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                              point.status === 'working'
+                                ? 'bg-green-600 text-white shadow-sm ring-2 ring-green-600 ring-offset-1 font-semibold'
+                                : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
                             }`}
-                            title={`Последний сигнал: ${dateStr} ${timeStr}`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                            {isOnline
-                              ? 'В сети'
-                              : diffSec < 3600
-                              ? `${Math.round(diffSec / 60)} мин назад`
-                              : `${dateStr} ${timeStr}`}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    {point.ribbon_level != null && (
-                      <div>
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
-                          <span>Цветная лента</span>
-                          <span className="font-semibold text-gray-800">{point.ribbon_level}%</span>
+                            {point.status === 'working' && <Check size={12} strokeWidth={3} />}
+                            Работает
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              updateStatus.mutate({ id: point.id, status: 'not_working' });
+                            }}
+                            disabled={updateStatus.isPending}
+                            className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                              point.status === 'not_working'
+                                ? 'bg-red-600 text-white shadow-sm ring-2 ring-red-600 ring-offset-1 font-semibold'
+                                : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                            }`}
+                          >
+                            {point.status === 'not_working' && <Check size={12} strokeWidth={3} />}
+                            Не работает
+                          </button>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={`h-1.5 rounded-full ${point.ribbon_level <= 15 ? 'bg-red-500' : point.ribbon_level <= 30 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min(100, Math.max(0, point.ribbon_level))}%` }}
-                          />
+                        <div className="flex gap-1.5 mt-2">
+                          <button
+                            onClick={() => navigate(`/points/${point.id}`)}
+                            className="flex-1 text-xs px-2 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Pencil size={12} /> Подробнее
+                          </button>
+                          <button
+                            onClick={() => handleDelete(point.id, point.name)}
+                            className="text-xs px-2 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
-                      </div>
+                      </>
                     )}
 
-                    {point.film_level != null && (
-                      <div>
-                        <div className="flex justify-between text-[10px] text-gray-500 mb-0.5">
-                          <span>Ретрансферная пленка</span>
-                          <span className="font-semibold text-gray-800">{point.film_level}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={`h-1.5 rounded-full ${point.film_level <= 15 ? 'bg-red-500' : point.film_level <= 30 ? 'bg-amber-500' : 'bg-blue-500'}`}
-                            style={{ width: `${Math.min(100, Math.max(0, point.film_level))}%` }}
-                          />
-                        </div>
+                    {!isWorker && (
+                      <div className="flex gap-1.5 mt-2">
+                        <button
+                          onClick={() => navigate(`/points/${point.id}`)}
+                          className="flex-1 text-xs text-blue-600 py-1.5 bg-blue-50/50 hover:bg-blue-50 rounded-lg transition-colors font-medium cursor-pointer"
+                        >
+                          Детали
+                        </button>
+                        <button
+                          onClick={() => navigate(`/manager/visits?pointName=${encodeURIComponent(point.name)}`)}
+                          className="flex-1 text-xs text-purple-600 py-1.5 bg-purple-50/50 hover:bg-purple-50 rounded-lg transition-colors font-medium flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <ClipboardList size={12} /> Отчеты
+                        </button>
                       </div>
                     )}
                   </div>
-                )}
-
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] text-gray-400">
-                    {point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}
-                  </span>
-                </div>
-
-                {/* Navigation buttons */}
-                <div className="flex gap-1.5 mt-3">
-                  <a
-                    href={`https://yandex.ru/maps/?rtext=~${point.latitude},${point.longitude}&rtt=auto`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-xs px-2 py-2 bg-yellow-50 text-yellow-800 rounded-lg hover:bg-yellow-100 transition-colors font-medium flex items-center justify-center gap-1.5"
-                  >
-                    <Navigation size={14} /> Яндекс
-                  </a>
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-xs px-2 py-2 bg-green-50 text-green-800 rounded-lg hover:bg-green-100 transition-colors font-medium flex items-center justify-center gap-1.5"
-                  >
-                    <Navigation size={14} /> Google
-                  </a>
-                </div>
-
-                {isWorker && (
-                  <>
-                    <div className="flex gap-1.5 mt-3">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          updateStatus.mutate({ id: point.id, status: 'working' });
-                        }}
-                        disabled={updateStatus.isPending}
-                        className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                          point.status === 'working'
-                            ? 'bg-green-600 text-white shadow-sm ring-2 ring-green-600 ring-offset-1 font-semibold'
-                            : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
-                        }`}
-                      >
-                        {point.status === 'working' && <Check size={12} strokeWidth={3} />}
-                        Работает
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          updateStatus.mutate({ id: point.id, status: 'not_working' });
-                        }}
-                        disabled={updateStatus.isPending}
-                        className={`flex-1 text-xs px-2 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                          point.status === 'not_working'
-                            ? 'bg-red-600 text-white shadow-sm ring-2 ring-red-600 ring-offset-1 font-semibold'
-                            : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-                        }`}
-                      >
-                        {point.status === 'not_working' && <Check size={12} strokeWidth={3} />}
-                        Не работает
-                      </button>
-                    </div>
-                    <div className="flex gap-1.5 mt-2">
-                      <button
-                        onClick={() => navigate(`/points/${point.id}`)}
-                        className="flex-1 text-xs px-2 py-1.5 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium flex items-center justify-center gap-1"
-                      >
-                        <Pencil size={12} /> Изменить
-                      </button>
-                      <button
-                        onClick={() => handleDelete(point.id, point.name)}
-                        className="text-xs px-2 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium flex items-center justify-center gap-1"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {!isWorker && (
-                  <div className="flex gap-1.5 mt-2">
-                    <button
-                      onClick={() => navigate(`/points/${point.id}`)}
-                      className="flex-1 text-xs text-blue-600 py-1.5 bg-blue-50/50 hover:bg-blue-50 rounded-lg transition-colors font-medium"
-                    >
-                      Детали
-                    </button>
-                    <button
-                      onClick={() => navigate(`/manager/visits?pointName=${encodeURIComponent(point.name)}`)}
-                      className="flex-1 text-xs text-purple-600 py-1.5 bg-purple-50/50 hover:bg-purple-50 rounded-lg transition-colors font-medium flex items-center justify-center gap-1"
-                    >
-                      <ClipboardList size={12} /> Отчеты
-                    </button>
-                  </div>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+                </Popup>
+              )}
+            </Marker>
+          );
+        })}
       </MapContainer>
 
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[1000] border border-gray-100">
+      {/* Legend + Quick Filters */}
+      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[1000] border border-gray-100 min-w-[165px]">
         <div className="font-semibold text-gray-700 mb-2">Статус точек</div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-gray-600">Работает</span></div>
-            <strong className="text-green-600">{points.filter(p => p.status === 'working').length}</strong>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500"></span><span className="text-gray-600">Не работает</span></div>
-            <strong className="text-red-600">{points.filter(p => p.status === 'not_working').length}</strong>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-gray-500"></span><span className="text-gray-600">Неизвестно</span></div>
-            <strong className="text-gray-500">{points.filter(p => p.status === 'unknown').length}</strong>
-          </div>
+        <div className="space-y-1">
+          <button
+            onClick={() => setFilter('all')}
+            className={`w-full flex items-center justify-between gap-3 px-1.5 py-1 rounded-lg transition-colors cursor-pointer ${
+              filter === 'all' ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span><span>Работает</span></div>
+            <strong className="text-green-600">{counts.working}</strong>
+          </button>
+          <button
+            onClick={() => setFilter(filter === 'not_working' ? 'all' : 'not_working')}
+            className={`w-full flex items-center justify-between gap-3 px-1.5 py-1 rounded-lg transition-colors cursor-pointer ${
+              filter === 'not_working' ? 'bg-red-50 text-red-700 font-semibold' : 'hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span><span>Не работает</span></div>
+            <strong className="text-red-600">{counts.notWorking}</strong>
+          </button>
+          <button
+            onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')}
+            className={`w-full flex items-center justify-between gap-3 px-1.5 py-1 rounded-lg transition-colors cursor-pointer ${
+              filter === 'overdue' ? 'bg-amber-50 text-amber-800 font-semibold' : 'hover:bg-gray-50 text-gray-600'
+            }`}
+            title="Точки без посещения более 60 дней (2 месяца)"
+          >
+            <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-amber-200"></span><span>&gt;60 дн.</span></div>
+            <strong className="text-amber-600">{counts.overdue}</strong>
+          </button>
         </div>
-        <div className="mt-2 pt-2 border-t border-gray-100 text-gray-500">
-          Всего: <strong>{points.length}</strong>
+        <div className="mt-2 pt-1.5 border-t border-gray-100 text-gray-500 flex justify-between px-1">
+          <span>Всего:</span>
+          <strong>{points.length}</strong>
         </div>
       </div>
 
-      {/* Location Button — uses navigator.geolocation directly */}
+      {/* Route Mode Toggle Button */}
       <button
-        onClick={handleLocate}
-        className="absolute bottom-6 right-4 z-[1000] w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all border border-gray-200"
-        title="Моё местоположение"
+        onClick={() => {
+          setRouteMode((prev) => {
+            if (prev) setRouteIds([]);
+            return !prev;
+          });
+        }}
+        className={`absolute top-4 right-4 z-[1000] px-3.5 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+          routeMode
+            ? 'bg-blue-600 text-white border-blue-700'
+            : 'bg-white/95 text-gray-700 border-gray-200 hover:bg-gray-50'
+        }`}
+        title="Выбрать несколько точек для маршрута в Яндекс Картах"
       >
-        <Locate size={22} className={locating ? 'text-blue-600 animate-pulse' : 'text-gray-600'} />
+        <RouteIcon size={16} />
+        {routeMode ? 'Отмена маршрута' : 'Маршрут'}
       </button>
 
+      {/* Route Builder Bottom Bar */}
+      {routeMode && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1001] w-[calc(100%-2rem)] max-w-md bg-white rounded-2xl shadow-2xl border border-blue-100 p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-gray-900">
+                Режим маршрута {routeIds.length > 0 ? `(${routeIds.length} точек)` : ''}
+              </div>
+              <div className="text-[11px] text-gray-500">
+                Нажимайте на маркеры на карте, чтобы добавить в маршрут
+              </div>
+            </div>
+            {routeIds.length > 0 && (
+              <button
+                onClick={() => setRouteIds([])}
+                className="text-[11px] text-gray-400 hover:text-red-500 px-2 py-1 cursor-pointer"
+              >
+                Очистить
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            {routeIds.length >= 2 && (
+              <button
+                onClick={optimizeRouteOrder}
+                className="px-3 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-semibold hover:bg-indigo-100 flex items-center gap-1 cursor-pointer"
+                title="Упорядочить точки по кратчайшему пути"
+              >
+                <Sparkles size={14} /> Оптимизировать
+              </button>
+            )}
+            <button
+              onClick={openYandexRoute}
+              disabled={routeIds.length === 0}
+              className="flex-1 py-2 px-3 bg-yellow-400 text-gray-900 rounded-xl text-xs font-bold hover:bg-yellow-500 disabled:opacity-40 flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Navigation size={14} /> Открыть в Яндекс Картах
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Location Button */}
+      {!routeMode && (
+        <button
+          onClick={handleLocate}
+          className="absolute bottom-6 right-4 z-[1000] w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center hover:bg-gray-50 active:scale-95 transition-all border border-gray-200 cursor-pointer"
+          title="Моё местоположение"
+        >
+          <Locate size={22} className={locating ? 'text-blue-600 animate-pulse' : 'text-gray-600'} />
+        </button>
+      )}
+
       {/* Add Point FAB */}
-      {isWorker && (
+      {isWorker && !routeMode && (
         <button
           onClick={() => openAddForm()}
-          className="absolute bottom-6 left-4 z-[1000] w-12 h-12 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all"
+          className="absolute bottom-6 left-4 z-[1000] w-12 h-12 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all cursor-pointer"
           title="Добавить точку"
         >
           <Plus size={24} />

@@ -1,11 +1,12 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePoint, useDeletePoint, useUpdatePoint } from '../../hooks/usePoints';
 import { useVisits, useVisitPhotos } from '../../hooks/useVisits';
+import { usePrintSummary30d, getVisitAgeInfo } from '../../hooks/usePrintStats';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { MapPin, ArrowLeft, Wrench, Trash2, Pencil, X, Check } from 'lucide-react';
+import { MapPin, ArrowLeft, Wrench, Trash2, Pencil, X, Check, Clock, Printer } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 function VisitPhotos({ visitId }: { visitId: string }) {
@@ -120,6 +121,7 @@ export function PointDetailPage() {
   const navigate = useNavigate();
   const { data: point, isLoading: pointLoading } = usePoint(id!);
   const { data: visits = [], isLoading: visitsLoading } = useVisits(id);
+  const { data: printSummary = {} } = usePrintSummary30d();
   const deletePoint = useDeletePoint();
   const { user } = useAuthStore();
   const isWorker = user?.role === 'worker';
@@ -156,9 +158,35 @@ export function PointDetailPage() {
         <h2 className="text-xl font-bold text-gray-900">{point.name}</h2>
         {point.address && <p className="text-sm text-gray-500 mt-0.5">{point.address}</p>}
         {point.notes && <p className="text-xs text-gray-400 mt-1">{point.notes}</p>}
-        <div className="flex items-center gap-2 mt-2">
-          <MapPin size={12} className="text-gray-400" />
-          <span className="text-xs text-gray-400">{point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}</span>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="flex items-center gap-1 text-xs text-gray-400">
+            <MapPin size={12} /> {point.latitude.toFixed(6)}, {point.longitude.toFixed(6)}
+          </span>
+          {(() => {
+            const visitInfo = getVisitAgeInfo(visits[0]?.visited_at);
+            return (
+              <span
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                  visitInfo.isOverdue
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                <Clock size={11} />
+                Посл. визит: {visitInfo.isOverdue ? `⚠️ ${visitInfo.label}` : visitInfo.label}
+              </span>
+            );
+          })()}
+          {printSummary[point.id] && (
+            <Link
+              to="/prints"
+              className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 no-underline hover:bg-blue-100"
+            >
+              <Printer size={11} />
+              За 30 дн.: {printSummary[point.id].last30d} карт
+              {printSummary[point.id].today > 0 ? ` (сегодня: ${printSummary[point.id].today})` : ''}
+            </Link>
+          )}
         </div>
 
         {/* Телеметрия принтера и расходников */}

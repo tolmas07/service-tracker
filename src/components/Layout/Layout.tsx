@@ -2,18 +2,20 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X } from 'lucide-react';
+import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X, Printer } from 'lucide-react';
 import { APP_VERSION } from '../../lib/constants';
 
 const workerLinks = [
   { to: '/', icon: Map, label: 'Карта' },
   { to: '/trip', icon: Route, label: 'Поездка' },
+  { to: '/prints', icon: Printer, label: 'Печать' },
   { to: '/history', icon: ClipboardList, label: 'История' },
 ];
 
 const managerLinks = [
   { to: '/manager', icon: BarChart3, label: 'Обзор' },
   { to: '/', icon: Map, label: 'Карта' },
+  { to: '/prints', icon: Printer, label: 'Печать' },
   { to: '/manager/visits', icon: ClipboardList, label: 'Отчеты' },
 ];
 
@@ -110,6 +112,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
 export function Header() {
   const { user, signOut } = useAuthStore();
+  const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
