@@ -6,41 +6,53 @@ import type { Point, PointStatus } from '../types';
 
 import { useManagerStore } from '../stores/managerStore';
 
+let activeRealtimeSubscribers = 0;
+let sharedPointsChannel: ReturnType<typeof supabase.channel> | null = null;
+
 export function usePoints() {
   const user = useAuthStore((state) => state.user);
   const selectedWorker = useManagerStore((state) => state.selectedWorker);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Подписка на Realtime обновления точек в реальном времени
-    const channel = supabase
-      .channel('points-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'points' },
-        (payload) => {
-          if (payload.eventType === 'UPDATE' && payload.new) {
-            queryClient.setQueryData<Point[]>(['points', user?.id, selectedWorker], (old) => {
-              if (!old) return old;
-              return old.map((p) => (p.id === payload.new.id ? { ...p, ...payload.new } : p));
-            });
-            queryClient.setQueryData<Point>(['points', payload.new.id], (old) => {
-              return old ? { ...old, ...payload.new } : (payload.new as Point);
-            });
-          } else {
-            queryClient.invalidateQueries({ queryKey: ['points'] });
+    activeRealtimeSubscribers++;
+
+    if (!sharedPointsChannel) {
+      sharedPointsChannel = supabase
+        .channel('points-realtime-shared')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'points' },
+          (payload) => {
+            if (payload.eventType === 'UPDATE' && payload.new) {
+              queryClient.setQueriesData<Point[]>({ queryKey: ['points'] }, (old) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((p) => (p.id === payload.new.id ? { ...p, ...payload.new } : p));
+              });
+              queryClient.setQueryData<Point>(['points', payload.new.id], (old) => {
+                return old ? { ...old, ...payload.new } : (payload.new as Point);
+              });
+            } else {
+              queryClient.invalidateQueries({ queryKey: ['points'] });
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      activeRealtimeSubscribers--;
+      if (activeRealtimeSubscribers <= 0 && sharedPointsChannel) {
+        activeRealtimeSubscribers = 0;
+        supabase.removeChannel(sharedPointsChannel);
+        sharedPointsChannel = null;
+      }
     };
-  }, [queryClient, user?.id, selectedWorker]);
+  }, [queryClient]);
 
   return useQuery({
     queryKey: ['points', user?.id, selectedWorker],
+    staleTime: 2 * 60_000,
     queryFn: async () => {
       let query = supabase
         .from('points')

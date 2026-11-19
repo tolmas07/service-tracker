@@ -21,6 +21,7 @@
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.4.0",
     "dexie": "^4.4.5",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.43.0",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDeletePoint } from '../../hooks/usePoints';
@@ -124,7 +124,7 @@ export function MapView() {
   const [form, setForm] = useState({ name: '', lat: '', lng: '', address: '', notes: '' });
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
-  const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const userPosRef = useRef<[number, number] | null>(null);
   const [filter, setFilter] = useState<MapFilter>('all');
 
   // Route builder state
@@ -132,7 +132,7 @@ export function MapView() {
   const [routeIds, setRouteIds] = useState<string[]>([]);
 
   const handleUserPos = useCallback((coords: [number, number]) => {
-    setUserPos(coords);
+    userPosRef.current = coords;
   }, []);
 
   const counts = useMemo(() => {
@@ -168,10 +168,11 @@ export function MapView() {
     if (remaining.length < 2) return;
 
     const ordered: Point[] = [];
-    let curLat = userPos ? userPos[0] : remaining[0].latitude;
-    let curLng = userPos ? userPos[1] : remaining[0].longitude;
+    const currentPos = userPosRef.current;
+    let curLat = currentPos ? currentPos[0] : remaining[0].latitude;
+    let curLng = currentPos ? currentPos[1] : remaining[0].longitude;
 
-    if (!userPos) {
+    if (!currentPos) {
       ordered.push(remaining.shift()!);
     }
 
@@ -192,7 +193,7 @@ export function MapView() {
     }
 
     setRouteIds(ordered.map((p) => p.id));
-  }, [routeIds, points, userPos]);
+  }, [routeIds, points]);
 
   const openYandexRoute = useCallback(() => {
     const byId = new Map(points.map((p) => [p.id, p]));
@@ -203,39 +204,67 @@ export function MapView() {
 
     if (stops.length === 0) return;
 
-    const rtext = userPos
-      ? `${userPos[0]},${userPos[1]}~${stops.join('~')}`
+    const currentPos = userPosRef.current;
+    const rtext = currentPos
+      ? `${currentPos[0]},${currentPos[1]}~${stops.join('~')}`
       : stops.length === 1
       ? `~${stops[0]}`
       : stops.join('~');
 
     window.open(`https://yandex.uz/maps/?rtext=${rtext}&rtt=auto`, '_blank', 'noopener,noreferrer');
-  }, [routeIds, points, userPos]);
+  }, [routeIds, points]);
 
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) {
       alert('Геолокация не поддерживается вашим браузером');
       return;
     }
+
+    // 1. Instant fly if live GPS position is already cached (0ms delay!)
+    if (userPosRef.current) {
+      setFlyTo([userPosRef.current[0], userPosRef.current[1]]);
+      // Silently refresh high-accuracy position in background
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          userPosRef.current = coords;
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
+      );
+      return;
+    }
+
+    // 2. Fast initial fix (Wi-Fi/Cell/cached GPS in <1s), then refine
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-        setUserPos(coords);
+        userPosRef.current = coords;
         setFlyTo(coords);
         setLocating(false);
       },
-      (err) => {
-        setLocating(false);
-        if (err.code === 1) {
-          alert('Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.');
-        } else if (err.code === 2) {
-          alert('Не удалось определить местоположение. Проверьте что GPS включён.');
-        } else {
-          alert('Не удалось определить местоположение. Попробуйте ещё раз.');
-        }
+      () => {
+        // Fallback to high accuracy if fast fix failed
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+            userPosRef.current = coords;
+            setFlyTo(coords);
+            setLocating(false);
+          },
+          (err) => {
+            setLocating(false);
+            if (err.code === 1) {
+              alert('Доступ к геолокации запрещён. Разрешите доступ в настройках браузера.');
+            } else {
+              alert('Не удалось определить местоположение. Проверьте что GPS включён.');
+            }
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
     );
   }, []);
 

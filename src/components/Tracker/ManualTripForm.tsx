@@ -8,8 +8,9 @@ import {
   Plus, List, Ruler, Pencil, Trash2, Check, Wallet, Route, MapPin,
   Clock, ChevronLeft, ChevronRight, Download, Gauge
 } from 'lucide-react';
-import type { Trip } from '../../types';
+import type { Trip, Visit } from '../../types';
 import { COST_PER_KM } from '../../types';
+import { exportTripsToStyledExcel } from '../../lib/tripExcelExport';
 
 function formatDuration(seconds?: number): string | null {
   if (!seconds || seconds <= 0) return null;
@@ -203,27 +204,24 @@ export function ManualTripForm() {
     if (filteredTrips.length === 0) return;
     setExporting(true);
     try {
-      const XLSX = await import('xlsx');
-      const rows = filteredTrips.map((t, idx) => ({
-        '№': idx + 1,
-        'Дата': format(new Date(t.started_at), 'dd.MM.yyyy'),
-        'Выезд': format(new Date(t.started_at), 'HH:mm'),
-        'Прибытие': t.ended_at ? format(new Date(t.ended_at), 'HH:mm') : '',
-        'Пробег (км)': Number(((t.total_distance_m || 0) / 1000).toFixed(1)),
-        'Компенсация (сум)': t.compensation_uzs || 0,
-      }));
-      rows.push({
-        '№': filteredTrips.length + 1,
-        'Дата': 'ИТОГО',
-        'Выезд': '',
-        'Прибытие': '',
-        'Пробег (км)': Number(totalKm.toFixed(1)),
-        'Компенсация (сум)': totalCompensation,
+      // Load worker's visits with point details so destination columns match Yangi_safarlar_muallif.xlsx
+      let visits: Visit[] = [];
+      if (user?.id) {
+        const { data } = await supabase
+          .from('visits')
+          .select('*, point:points(*)')
+          .eq('worker_id', user.id)
+          .order('visited_at', { ascending: true });
+        visits = (data || []) as Visit[];
+      }
+
+      await exportTripsToStyledExcel({
+        trips: filteredTrips,
+        visits,
+        periodLabel: monthLabel,
+        fileName: `Safarlar_hisoboti_${periodMode === 'month' ? monthValue : 'barchasi'}.xlsx`,
+        workerName: user?.full_name,
       });
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Поездки');
-      XLSX.writeFile(wb, `trips-${periodMode === 'month' ? monthValue : 'all'}.xlsx`);
     } finally {
       setExporting(false);
     }

@@ -20,7 +20,7 @@ export interface PrintEventRow {
 export function usePrintSummary30d() {
   return useQuery({
     queryKey: ['print-summary-30d'],
-    staleTime: 60_000,
+    staleTime: 3 * 60_000,
     queryFn: async (): Promise<Record<string, PointPrintSummary>> => {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const todayStart = new Date();
@@ -89,13 +89,13 @@ export function usePrintReport(fromIso?: string, toIso?: string) {
 export function useLastVisitsByPoint() {
   return useQuery({
     queryKey: ['last-visits-by-point'],
-    staleTime: 60_000,
+    staleTime: 3 * 60_000,
     queryFn: async (): Promise<Record<string, string>> => {
       const { data, error } = await supabase
         .from('visits')
         .select('point_id, visited_at')
         .order('visited_at', { ascending: false })
-        .limit(10000);
+        .limit(2000);
 
       if (error) return {};
 
