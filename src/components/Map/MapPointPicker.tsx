@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { usePoints } from '../../hooks/usePoints';
+import { usePoints, useAllPoints } from '../../hooks/usePoints';
 import type { Point } from '../../types';
-import { X, Check, Search, Map as MapIcon, List, MapPin } from 'lucide-react';
+import { X, Check, Search, Map as MapIcon, List, MapPin, Globe } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   working: '#16a34a',
@@ -57,21 +57,28 @@ interface MapPointPickerProps {
 }
 
 export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointPickerProps) {
-  const { data: points = [], isLoading } = usePoints();
+  const { data: myPoints = [], isLoading: myLoading } = usePoints();
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [previewPoint, setPreviewPoint] = useState<Point | null>(null);
 
+  // Load all regions when user switches to 'all' OR starts searching
+  const { data: allPoints = [], isLoading: allLoading } = useAllPoints(scope === 'all' || search.trim().length > 0);
+  const isLoading = scope === 'all' ? allLoading : myLoading;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return points.filter((p) => {
+    // If searching, automatically include all regions so cross-region trips are found immediately
+    const source = scope === 'all' || q.length > 0 ? (allPoints.length > 0 ? allPoints : myPoints) : myPoints;
+    return source.filter((p) => {
       if (!q) return true;
       return (
         p.name?.toLowerCase().includes(q) ||
         p.address?.toLowerCase().includes(q)
       );
     });
-  }, [points, search]);
+  }, [myPoints, allPoints, scope, search]);
 
   const validMapPoints = useMemo(
     () =>
@@ -121,13 +128,13 @@ export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointP
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-4 py-2 bg-white border-b border-gray-100 shrink-0">
+      {/* Search + Scope Toggle (My Points vs All Regions) */}
+      <div className="px-4 py-2 bg-white border-b border-gray-100 shrink-0 space-y-2">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Поиск по названию или адресу..."
+            placeholder="Поиск по всем регионам (название, адрес)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
@@ -141,6 +148,30 @@ export function MapPointPicker({ onSelect, onClose, selectedPointId }: MapPointP
               <X size={14} />
             </button>
           )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setScope('mine')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              scope === 'mine'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Мои точки ({myPoints.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope('all')}
+            className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer ${
+              scope === 'all'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <Globe size={13} /> Все регионы {allPoints.length > 0 ? `(${allPoints.length})` : ''}
+          </button>
         </div>
       </div>
 

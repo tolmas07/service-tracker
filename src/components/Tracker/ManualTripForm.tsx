@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import { usePoints } from '../../hooks/usePoints';
+import { useAllPoints } from '../../hooks/usePoints';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -192,7 +192,7 @@ function HomeBaseModal({
 
 export function ManualTripForm() {
   const { user } = useAuthStore();
-  const { data: points = [] } = usePoints();
+  const { data: points = [] } = useAllPoints(true);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'new' | 'list'>('new');
 

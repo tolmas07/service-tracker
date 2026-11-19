@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import imageCompression from 'browser-image-compression';
 import { useCreateVisit, useUploadPhoto, useVisitPhotos } from '../../hooks/useVisits';
-import { usePoints } from '../../hooks/usePoints';
+import { useAllPoints } from '../../hooks/usePoints';
 import { useAuthStore } from '../../stores/authStore';
 import { WORK_TYPES, VISIT_STATUSES } from '../../types';
 import type { Visit, Point } from '../../types';
@@ -133,7 +133,7 @@ function ExistingPhotos({ visitId, onDelete }: { visitId: string; onDelete: () =
 
 export function VisitForm({ pointId: initialPointId, initialData, onSave }: VisitFormProps) {
   const { user } = useAuthStore();
-  const { data: points = [] } = usePoints();
+  const { data: points = [] } = useAllPoints(true);
   const createVisit = useCreateVisit();
   const uploadPhoto = useUploadPhoto();
   const navigate = useNavigate();

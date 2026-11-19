@@ -73,6 +73,22 @@ export function usePoints() {
   });
 }
 
+export function useAllPoints(enabled = true) {
+  return useQuery({
+    queryKey: ['points', 'all-regions'],
+    staleTime: 5 * 60_000,
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('points')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return (data || []) as Point[];
+    },
+  });
+}
+
 export function usePoint(id: string) {
   return useQuery({
     queryKey: ['points', id],
