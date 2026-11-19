@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInCalendarDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Printer, Calendar, Download, Search, ChevronLeft, ChevronRight, Building2, TrendingUp, Award, AlertCircle } from 'lucide-react';
+import { Printer, Calendar, Download, Search, ChevronLeft, ChevronRight, Building2, TrendingUp, TrendingDown, Award, AlertCircle } from 'lucide-react';
 import { usePoints } from '../../hooks/usePoints';
 import { usePrintReport } from '../../hooks/usePrintStats';
 
@@ -14,6 +14,7 @@ export function PrintReportPage() {
   const [fromDate, setFromDate] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [search, setSearch] = useState('');
+  const [ratingTab, setRatingTab] = useState<'best' | 'worst'>('best');
   const [exporting, setExporting] = useState(false);
 
   const { data: points = [] } = usePoints();
@@ -92,14 +93,36 @@ export function PrintReportPage() {
     const divisor = periodDays > 0 ? periodDays : Math.max(1, activeDays.size);
     const avgPerDay = total > 0 ? Math.round((total / divisor) * 10) / 10 : 0;
 
+    // Full ranking across ALL points (including 0-print points for Top-10 Worst)
+    const allRanked = points.map((pt) => {
+      const info = perPoint.get(pt.id);
+      return {
+        pointId: pt.id,
+        name: pt.name,
+        address: pt.address || '',
+        count: info?.count ?? 0,
+      };
+    });
+
+    const top10Best = [...allRanked]
+      .filter((p) => p.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const top10Worst = [...allRanked]
+      .sort((a, b) => a.count - b.count || a.name.localeCompare(b.name))
+      .slice(0, 10);
+
     return {
       total,
       activePoints: list.length,
       avgPerDay,
       leader: list[0] ?? null,
       list,
+      top10Best,
+      top10Worst,
     };
-  }, [rows, pointsById, periodDays]);
+  }, [rows, pointsById, points, periodDays]);
 
   const filteredList = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -289,6 +312,88 @@ export function PrintReportPage() {
             </div>
           </div>
         </div>
+
+        {/* Top-10 Best & Worst Rating Card */}
+        {points.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-3 border-b border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex bg-gray-100 p-0.5 rounded-xl flex-1 sm:flex-none">
+                <button
+                  onClick={() => setRatingTab('best')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    ratingTab === 'best'
+                      ? 'bg-white text-emerald-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Award size={14} /> Топ-10 лучших
+                </button>
+                <button
+                  onClick={() => setRatingTab('worst')}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                    ratingTab === 'worst'
+                      ? 'bg-white text-red-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <TrendingDown size={14} /> Топ-10 худших
+                </button>
+              </div>
+              <span className="hidden sm:inline text-[11px] text-gray-400 capitalize">{periodLabel}</span>
+            </div>
+
+            {(ratingTab === 'best' ? stats.top10Best : stats.top10Worst).length === 0 ? (
+              <div className="p-6 text-center text-xs text-gray-400">
+                Нет данных для рейтинга за выбранный период
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {(ratingTab === 'best' ? stats.top10Best : stats.top10Worst).map((item, idx) => (
+                  <Link
+                    key={item.pointId}
+                    to={`/points/${item.pointId}`}
+                    className="flex items-center justify-between gap-2 px-3.5 py-2.5 hover:bg-gray-50 transition-colors no-underline"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span
+                        className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                          ratingTab === 'best'
+                            ? idx === 0
+                              ? 'bg-amber-100 text-amber-700'
+                              : idx <= 2
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-gray-100 text-gray-600'
+                            : item.count === 0
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">{item.name}</div>
+                        {item.address && (
+                          <div className="text-[10px] text-gray-400 truncate">{item.address}</div>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        ratingTab === 'best'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : item.count === 0
+                          ? 'bg-red-50 text-red-600'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}
+                    >
+                      {item.count} карт
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search + Table */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

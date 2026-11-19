@@ -2,15 +2,23 @@ import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
+import { usePoints } from '../../hooks/usePoints';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
   Plus, List, Ruler, Pencil, Trash2, Check, Wallet, Route, MapPin,
-  Clock, ChevronLeft, ChevronRight, Download, Gauge
+  Clock, ChevronLeft, ChevronRight, Download, Home, X, Locate, Sparkles
 } from 'lucide-react';
-import type { Trip, Visit } from '../../types';
+import type { Point, Trip, Visit } from '../../types';
 import { COST_PER_KM } from '../../types';
-import { exportTripsToStyledExcel } from '../../lib/tripExcelExport';
+import {
+  exportTripsToStyledExcel,
+  loadHomeBase,
+  saveHomeBase,
+  saveTripRoute,
+  type HomeBase,
+} from '../../lib/tripExcelExport';
+import { MapPointPicker } from '../Map/MapPointPicker';
 
 function formatDuration(seconds?: number): string | null {
   if (!seconds || seconds <= 0) return null;
@@ -21,20 +29,187 @@ function formatDuration(seconds?: number): string | null {
   return `${m}м`;
 }
 
+function HomeBaseModal({
+  home,
+  onSave,
+  onClose,
+}: {
+  home: HomeBase;
+  onSave: (next: HomeBase) => void;
+  onClose: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: home.name,
+    region: home.region,
+    address: home.address,
+    lat: String(home.lat),
+    lng: String(home.lng),
+  });
+  const [locating, setLocating] = useState(false);
+
+  const detectGps = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm((prev) => ({
+          ...prev,
+          lat: pos.coords.latitude.toFixed(6),
+          lng: pos.coords.longitude.toFixed(6),
+        }));
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        alert('Не удалось определить GPS. Проверьте разрешение геолокации.');
+      },
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+    );
+  };
+
+  const handleSubmit = () => {
+    const lat = parseFloat(form.lat);
+    const lng = parseFloat(form.lng);
+    if (!form.name.trim() || isNaN(lat) || isNaN(lng)) return;
+    const next: HomeBase = {
+      name: form.name.trim(),
+      region: form.region.trim() || 'Samarqand',
+      address: form.address.trim() || '—',
+      lat,
+      lng,
+    };
+    saveHomeBase(next);
+    onSave(next);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[2000] p-4">
+      <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-3.5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-900 flex items-center gap-1.5">
+            <Home size={18} className="text-blue-600" /> Мой дом (база)
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-500">
+          Используется как начальная и конечная точка («Uy») при формировании Excel-отчёта по поездкам.
+        </p>
+
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Название</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Uy"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="min-w-0">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Область</label>
+              <input
+                type="text"
+                value={form.region}
+                onChange={(e) => setForm({ ...form, region: e.target.value })}
+                placeholder="Samarqand"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Адрес</label>
+            <input
+              type="text"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Ziyolilar 6-uy"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="min-w-0">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Широта</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.000001"
+                value={form.lat}
+                onChange={(e) => setForm({ ...form, lat: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="min-w-0">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Долгота</label>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.000001"
+                value={form.lng}
+                onChange={(e) => setForm({ ...form, lng: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={detectGps}
+            disabled={locating}
+            className="w-full py-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-semibold hover:bg-blue-100 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Locate size={14} className={locating ? 'animate-pulse' : ''} />
+            {locating ? 'Определение...' : 'Взять текущие GPS координаты'}
+          </button>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200 cursor-pointer"
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 cursor-pointer"
+          >
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ManualTripForm() {
   const { user } = useAuthStore();
+  const { data: points = [] } = usePoints();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'new' | 'list'>('new');
+
+  // Home base state
+  const [homeBase, setHomeBase] = useState<HomeBase>(() => loadHomeBase());
+  const [showHomeModal, setShowHomeModal] = useState(false);
 
   // Form State
   const today = new Date();
   const [date, setDate] = useState(format(today, 'yyyy-MM-dd'));
   const [timeStart, setTimeStart] = useState('08:00');
   const [timeEnd, setTimeEnd] = useState(format(today, 'HH:mm'));
-  const [inputMode, setInputMode] = useState<'km' | 'odometer'>('km');
   const [distanceKm, setDistanceKm] = useState('');
-  const [odoStart, setOdoStart] = useState('');
-  const [odoEnd, setOdoEnd] = useState('');
+  const [selectedStops, setSelectedStops] = useState<Point[]>([]);
+  const [returnHome, setReturnHome] = useState(true);
+  const [showPointPicker, setShowPointPicker] = useState(false);
+  const [loadingVisits, setLoadingVisits] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // List State
@@ -58,22 +233,10 @@ export function ManualTripForm() {
     enabled: !!user?.id,
   });
 
-  // Computed distance from either direct km or odometer difference
   const computedKm = useMemo(() => {
-    if (inputMode === 'km') {
-      const v = parseFloat(distanceKm.replace(',', '.'));
-      return isNaN(v) || v <= 0 ? 0 : v;
-    }
-    const s = parseFloat(odoStart.replace(',', '.'));
-    const e = parseFloat(odoEnd.replace(',', '.'));
-    if (isNaN(s) || isNaN(e) || e <= s) return 0;
-    return Math.round((e - s) * 10) / 10;
-  }, [inputMode, distanceKm, odoStart, odoEnd]);
-
-  const odoError = useMemo(() => {
-    if (inputMode !== 'odometer' || !odoStart || !odoEnd) return false;
-    return parseFloat(odoEnd) <= parseFloat(odoStart);
-  }, [inputMode, odoStart, odoEnd]);
+    const v = parseFloat(distanceKm.replace(',', '.'));
+    return isNaN(v) || v <= 0 ? 0 : v;
+  }, [distanceKm]);
 
   const previewDuration = useMemo(() => {
     const startMs = new Date(`${date}T${timeStart}:00`).getTime();
@@ -122,6 +285,39 @@ export function ManualTripForm() {
     setDistanceKm(String(Math.round((cur + delta) * 10) / 10));
   };
 
+  const loadStopsFromDayVisits = async () => {
+    if (!user?.id) return;
+    setLoadingVisits(true);
+    try {
+      const dayStart = new Date(`${date}T00:00:00`).toISOString();
+      const dayEnd = new Date(`${date}T23:59:59.999`).toISOString();
+      const { data } = await supabase
+        .from('visits')
+        .select('point_id, visited_at, point:points(*)')
+        .eq('worker_id', user.id)
+        .gte('visited_at', dayStart)
+        .lte('visited_at', dayEnd)
+        .order('visited_at', { ascending: true });
+
+      const seen = new Set<string>();
+      const found: Point[] = [];
+      for (const row of (data || []) as unknown as Visit[]) {
+        const pt = row.point || points.find((p) => p.id === row.point_id);
+        if (pt && !seen.has(pt.id)) {
+          seen.add(pt.id);
+          found.push(pt);
+        }
+      }
+      if (found.length === 0) {
+        alert('За выбранную дату отчётов о визитах ещё нет. Вы можете добавить точки вручную.');
+      } else {
+        setSelectedStops(found);
+      }
+    } finally {
+      setLoadingVisits(false);
+    }
+  };
+
   const handleSaveForm = async () => {
     if (!user || computedKm <= 0) return;
     setSaving(true);
@@ -132,23 +328,32 @@ export function ManualTripForm() {
     const endedAt = new Date(`${date}T${timeEnd}:00`).toISOString();
     const durationS = Math.max(0, Math.floor((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000));
 
-    const { error } = await supabase.from('trips').insert({
-      worker_id: user.id,
-      status: 'completed',
-      started_at: startedAt,
-      ended_at: endedAt,
-      total_distance_m: distM,
-      total_duration_s: durationS,
-      compensation_uzs: compensation,
-    });
+    const { data: inserted, error } = await supabase
+      .from('trips')
+      .insert({
+        worker_id: user.id,
+        status: 'completed',
+        started_at: startedAt,
+        ended_at: endedAt,
+        total_distance_m: distM,
+        total_duration_s: durationS,
+        compensation_uzs: compensation,
+      })
+      .select('id')
+      .single();
 
     setSaving(false);
     if (error) {
       alert(`Ошибка сохранения: ${error.message}`);
     } else {
+      if (inserted?.id && selectedStops.length > 0) {
+        saveTripRoute(inserted.id, {
+          pointIds: selectedStops.map((p) => p.id),
+          returnHome,
+        });
+      }
       setDistanceKm('');
-      setOdoStart(odoEnd);
-      setOdoEnd('');
+      setSelectedStops([]);
       setMonthValue(date.slice(0, 7));
       setPeriodMode('month');
       setActiveTab('list');
@@ -204,7 +409,6 @@ export function ManualTripForm() {
     if (filteredTrips.length === 0) return;
     setExporting(true);
     try {
-      // Load worker's visits with point details so destination columns match Yangi_safarlar_muallif.xlsx
       let visits: Visit[] = [];
       if (user?.id) {
         const { data } = await supabase
@@ -218,6 +422,7 @@ export function ManualTripForm() {
       await exportTripsToStyledExcel({
         trips: filteredTrips,
         visits,
+        points,
         periodLabel: monthLabel,
         fileName: `Safarlar_hisoboti_${periodMode === 'month' ? monthValue : 'barchasi'}.xlsx`,
         workerName: user?.full_name,
@@ -232,11 +437,16 @@ export function ManualTripForm() {
       {/* Compact Sticky Header */}
       <div className="bg-white border-b border-gray-200 pt-3 px-4 pb-3 shrink-0">
         <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="text-lg font-extrabold text-gray-900 tracking-tight">Поездки и пробег</h2>
-            <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-              {COST_PER_KM.toLocaleString()} сум/км
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowHomeModal(true)}
+              className="text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer transition-colors"
+              title="Настроить адрес и координаты дома для Excel-отчёта"
+            >
+              <Home size={13} /> {homeBase.name}
+            </button>
           </div>
 
           {/* Segmented Control */}
@@ -277,7 +487,7 @@ export function ManualTripForm() {
             <div className="space-y-4">
               <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 {/* Date */}
-                <div>
+                <div className="min-w-0">
                   <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
                     Дата поездки
                   </label>
@@ -285,7 +495,7 @@ export function ManualTripForm() {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                    className="w-full min-w-0 max-w-full px-3.5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                   />
                 </div>
 
@@ -323,101 +533,110 @@ export function ManualTripForm() {
                   </div>
                 </div>
 
-                {/* Distance mode switcher: Direct km vs Odometer */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
+                {/* Multi-stop route builder for Excel */}
+                <div className="pt-1">
+                  <div className="flex items-center justify-between gap-2 mb-2">
                     <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                      Расстояние
+                      Точки за день (для Excel)
                     </label>
-                    <div className="inline-flex bg-gray-100 p-0.5 rounded-lg text-[11px] font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => setInputMode('km')}
-                        className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                          inputMode === 'km' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
-                        }`}
-                      >
-                        Ввести км
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setInputMode('odometer')}
-                        className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
-                          inputMode === 'odometer' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
-                        }`}
-                      >
-                        <Gauge size={12} /> Одометр
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={loadStopsFromDayVisits}
+                      disabled={loadingVisits}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles size={12} /> {loadingVisits ? 'Поиск...' : 'Из визитов'}
+                    </button>
                   </div>
 
-                  {inputMode === 'km' ? (
-                    <>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                          <Ruler size={18} className="text-gray-400" />
-                        </div>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={distanceKm}
-                          onChange={(e) => setDistanceKm(e.target.value)}
-                          placeholder="0.0"
-                          step="0.1"
-                          min="0"
-                          className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xl font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                        />
-                        <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-gray-400">
-                          км
-                        </span>
-                      </div>
-                      {/* Quick-add chips for one-thumb mobile input */}
-                      <div className="flex gap-1.5 mt-2">
-                        {[10, 25, 50, 100].map((v) => (
+                  {/* Route Chain Pills */}
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg font-semibold text-gray-700">
+                        <Home size={11} className="text-blue-600" /> {homeBase.name}
+                      </span>
+
+                      {selectedStops.map((pt, idx) => (
+                        <span
+                          key={`${pt.id}-${idx}`}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg font-semibold text-blue-800 max-w-full"
+                        >
+                          <span className="text-[10px] text-blue-500">{idx + 1}.</span>
+                          <span className="truncate max-w-[160px]">{pt.name}</span>
                           <button
-                            key={v}
                             type="button"
-                            onClick={() => addQuickKm(v)}
-                            className="flex-1 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 active:scale-95 text-gray-600 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                            onClick={() => setSelectedStops((prev) => prev.filter((_, i) => i !== idx))}
+                            className="p-0.5 hover:bg-blue-100 rounded text-blue-500 cursor-pointer"
                           >
-                            +{v} км
+                            <X size={11} />
                           </button>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <span className="block text-[10px] text-gray-400 mb-1">Начало (одометр)</span>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            value={odoStart}
-                            onChange={(e) => setOdoStart(e.target.value)}
-                            placeholder="124500"
-                            className="w-full min-w-0 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[10px] text-gray-400 mb-1">Конец (одометр)</span>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            value={odoEnd}
-                            onChange={(e) => setOdoEnd(e.target.value)}
-                            placeholder="124620"
-                            className="w-full min-w-0 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          />
-                        </div>
-                      </div>
-                      {odoError && (
-                        <p className="text-xs text-red-500 font-medium">
-                          Конечный пробег должен быть больше начального
-                        </p>
+                        </span>
+                      ))}
+
+                      {returnHome && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg font-semibold text-gray-700">
+                          → <Home size={11} className="text-blue-600" /> {homeBase.name}
+                        </span>
                       )}
                     </div>
-                  )}
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowPointPicker(true)}
+                        className="px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-50 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={13} /> Добавить точку
+                      </button>
+
+                      <label className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={returnHome}
+                          onChange={(e) => setReturnHome(e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600"
+                        />
+                        Возврат домой
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Distance (direct km only — odometer removed) */}
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    Общее расстояние (км)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <Ruler size={18} className="text-gray-400" />
+                    </div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      placeholder="0.0"
+                      step="0.1"
+                      min="0"
+                      className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xl font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                    />
+                    <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-gray-400">
+                      км
+                    </span>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    {[10, 25, 50, 100].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => addQuickKm(v)}
+                        className="flex-1 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 active:scale-95 text-gray-600 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        +{v} км
+                      </button>
+                    ))}
+                  </div>
 
                   {computedKm > 0 && (
                     <div className="mt-3 p-3.5 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200/80 flex items-center justify-between">
@@ -463,7 +682,6 @@ export function ManualTripForm() {
                   <button
                     onClick={() => setPeriodMode(periodMode === 'month' ? 'all' : 'month')}
                     className="px-2.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 rounded-lg capitalize cursor-pointer"
-                    title="Нажмите чтобы переключить месяц / всё время"
                   >
                     {monthLabel}
                   </button>
@@ -492,7 +710,7 @@ export function ManualTripForm() {
                     disabled={exporting || filteredTrips.length === 0}
                     className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
                   >
-                    <Download size={13} /> Excel
+                    <Download size={13} /> {exporting ? '...' : 'Excel'}
                   </button>
                 </div>
               </div>
@@ -503,15 +721,13 @@ export function ManualTripForm() {
                   <Route size={84} />
                 </div>
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-white/10 rounded-lg">
-                        <Wallet size={16} className="text-blue-300" />
-                      </div>
-                      <span className="text-[11px] font-semibold text-blue-100 uppercase tracking-wider">
-                        Компенсация • {monthLabel}
-                      </span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 bg-white/10 rounded-lg">
+                      <Wallet size={16} className="text-blue-300" />
                     </div>
+                    <span className="text-[11px] font-semibold text-blue-100 uppercase tracking-wider">
+                      Компенсация • {monthLabel}
+                    </span>
                   </div>
                   <div className="text-3xl font-extrabold tracking-tight">
                     {totalCompensation.toLocaleString('ru-RU')}{' '}
@@ -654,6 +870,26 @@ export function ManualTripForm() {
           )}
         </div>
       </div>
+
+      {/* Home Base Modal */}
+      {showHomeModal && (
+        <HomeBaseModal
+          home={homeBase}
+          onSave={setHomeBase}
+          onClose={() => setShowHomeModal(false)}
+        />
+      )}
+
+      {/* Multi-stop Map Point Picker */}
+      {showPointPicker && (
+        <MapPointPicker
+          onSelect={(pt) => {
+            setSelectedStops((prev) => [...prev, pt]);
+            setShowPointPicker(false);
+          }}
+          onClose={() => setShowPointPicker(false)}
+        />
+      )}
     </div>
   );
 }

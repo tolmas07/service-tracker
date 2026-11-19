@@ -1,45 +1,149 @@
 import { format } from 'date-fns';
-import type { Trip, Visit } from '../types';
+import type { Point, Trip, Visit } from '../types';
 import { COST_PER_KM } from '../types';
 
-const HOME_BASE = {
+export interface HomeBase {
+  name: string;
+  region: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+export interface SavedTripRoute {
+  pointIds: string[];
+  returnHome: boolean;
+}
+
+const HOME_STORAGE_KEY = 'uzmulk_home_base_v1';
+const TRIP_ROUTES_STORAGE_KEY = 'uzmulk_trip_routes_v1';
+
+export const DEFAULT_HOME_BASE: HomeBase = {
   name: 'Uy',
   region: 'Samarqand',
   address: 'Ziyolilar 6-uy',
-  coords: '39.671230, 66.847290',
+  lat: 39.67123,
+  lng: 66.84729,
 };
+
+export function loadHomeBase(): HomeBase {
+  try {
+    const raw = localStorage.getItem(HOME_STORAGE_KEY);
+    if (!raw) return DEFAULT_HOME_BASE;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.name === 'string') {
+      return {
+        name: parsed.name || DEFAULT_HOME_BASE.name,
+        region: parsed.region || DEFAULT_HOME_BASE.region,
+        address: parsed.address || DEFAULT_HOME_BASE.address,
+        lat: Number.isFinite(Number(parsed.lat)) ? Number(parsed.lat) : DEFAULT_HOME_BASE.lat,
+        lng: Number.isFinite(Number(parsed.lng)) ? Number(parsed.lng) : DEFAULT_HOME_BASE.lng,
+      };
+    }
+  } catch {}
+  return DEFAULT_HOME_BASE;
+}
+
+export function saveHomeBase(home: HomeBase) {
+  try {
+    localStorage.setItem(HOME_STORAGE_KEY, JSON.stringify(home));
+  } catch {}
+}
+
+export function loadAllTripRoutes(): Record<string, SavedTripRoute> {
+  try {
+    const raw = localStorage.getItem(TRIP_ROUTES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveTripRoute(tripId: string, route: SavedTripRoute) {
+  try {
+    const all = loadAllTripRoutes();
+    all[tripId] = route;
+    localStorage.setItem(TRIP_ROUTES_STORAGE_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function detectRegion(name = '', address = ''): string {
   const s = `${name} ${address}`.toLowerCase();
-  if (s.includes('джиззак') || s.includes('жиззах') || s.includes('jizzax') || s.includes('дустлик') || s.includes('пахтакор')) return 'Jizzax';
-  if (s.includes('сырдар') || s.includes('сирдар') || s.includes('sirdaryo') || s.includes('мирзааб') || s.includes('mirzaobod')) return 'Sirdaryo';
-  if (s.includes('самарканд') || s.includes('самарқанд') || s.includes('samarqand')) return 'Samarqand';
+  if (s.includes('джиззак') || s.includes('жиззах') || s.includes('jizzax') || s.includes('дустлик') || s.includes('пахтакор') || s.includes('арнасай') || s.includes('замин') || s.includes('бахмал') || s.includes('галляарал')) return 'Jizzax';
+  if (s.includes('сырдар') || s.includes('сирдар') || s.includes('sirdaryo') || s.includes('мирзааб') || s.includes('mirzaobod') || s.includes('гулист') || s.includes('сайхун') || s.includes('янгиер') || s.includes('ширин')) return 'Sirdaryo';
+  if (s.includes('самарканд') || s.includes('самарқанд') || s.includes('samarqand') || s.includes('каттакург') || s.includes('пастдарг') || s.includes('булунгур') || s.includes('тайлак') || s.includes('джамбай') || s.includes('нарпай') || s.includes('пахтачи') || s.includes('нуробод') || s.includes('ургут') || s.includes('иштыхан') || s.includes('пайарык') || s.includes('акдарь')) return 'Samarqand';
   if (s.includes('ташкент') || s.includes('тошкент') || s.includes('toshkent')) return 'Toshkent';
   if (s.includes('бухар') || s.includes('buxoro')) return 'Buxoro';
   if (s.includes('навои') || s.includes('navoiy')) return 'Navoiy';
-  if (s.includes('кашкадар') || s.includes('қашқадар') || s.includes('qashqadaryo')) return 'Qashqadaryo';
-  if (s.includes('сурхандар') || s.includes('surxondaryo')) return 'Surxondaryo';
+  if (s.includes('кашкадар') || s.includes('қашқадар') || s.includes('qashqadaryo') || s.includes('карши') || s.includes('шахрисабз')) return 'Qashqadaryo';
+  if (s.includes('сурхандар') || s.includes('surxondaryo') || s.includes('термез')) return 'Surxondaryo';
   if (s.includes('андижан') || s.includes('андижон') || s.includes('andijon')) return 'Andijon';
-  if (s.includes('ферган') || s.includes('фарғона') || s.includes('farg')) return 'Farg\'ona';
+  if (s.includes('ферган') || s.includes('фарғона') || s.includes('farg')) return "Farg'ona";
   if (s.includes('наманган') || s.includes('namangan')) return 'Namangan';
   if (s.includes('хорезм') || s.includes('xorazm')) return 'Xorazm';
   return 'Samarqand';
 }
 
-function formatHours(seconds?: number): string {
-  if (!seconds || seconds <= 0) return '1.0 soat';
-  const hrs = Math.round((seconds / 3600) * 10) / 10;
+function formatHours(seconds: number): string {
+  const hrs = Math.max(0.1, Math.round((seconds / 3600) * 10) / 10);
   return `${hrs} soat`;
+}
+
+interface StopNode {
+  name: string;
+  region: string;
+  address: string;
+  lat: number;
+  lng: number;
+  coords: string;
+}
+
+function pointToStop(p: Point): StopNode {
+  const hasCoords =
+    typeof p.latitude === 'number' &&
+    typeof p.longitude === 'number' &&
+    Number.isFinite(p.latitude) &&
+    Number.isFinite(p.longitude);
+  return {
+    name: p.name,
+    region: detectRegion(p.name, p.address),
+    address: p.address || '—',
+    lat: hasCoords ? p.latitude : 39.67,
+    lng: hasCoords ? p.longitude : 66.85,
+    coords: hasCoords ? `${p.latitude.toFixed(6)}, ${p.longitude.toFixed(6)}` : '—',
+  };
+}
+
+function homeToStop(home: HomeBase): StopNode {
+  return {
+    name: home.name,
+    region: home.region,
+    address: home.address,
+    lat: home.lat,
+    lng: home.lng,
+    coords: `${home.lat.toFixed(6)}, ${home.lng.toFixed(6)}`,
+  };
 }
 
 export async function exportTripsToStyledExcel(params: {
   trips: Trip[];
   visits: Visit[];
+  points: Point[];
   periodLabel: string;
   fileName: string;
   workerName?: string;
 }) {
-  const { trips, visits, periodLabel, fileName, workerName } = params;
+  const { trips, visits, points, periodLabel, fileName, workerName } = params;
   const ExcelJS = await import('exceljs');
   const wb = new ExcelJS.Workbook();
   wb.creator = 'UzmulkTracker';
@@ -49,19 +153,126 @@ export async function exportTripsToStyledExcel(params: {
     views: [{ state: 'frozen', ySplit: 4 }],
   });
 
-  // Group visits by YYYY-MM-DD so we can auto-fill destination names, regions, addresses & coords
+  const homeNode = homeToStop(loadHomeBase());
+  const savedRoutes = loadAllTripRoutes();
+  const pointsById = new Map(points.map((p) => [p.id, p]));
+
+  // Group visits by YYYY-MM-DD in chronological order
   const visitsByDay = new Map<string, Visit[]>();
-  for (const v of visits) {
+  const sortedVisits = [...visits].sort(
+    (a, b) => new Date(a.visited_at).getTime() - new Date(b.visited_at).getTime()
+  );
+  for (const v of sortedVisits) {
     const dayKey = format(new Date(v.visited_at), 'yyyy-MM-dd');
     const arr = visitsByDay.get(dayKey) || [];
     arr.push(v);
     visitsByDay.set(dayKey, arr);
   }
 
-  // Sort trips chronologically (oldest -> newest, like Yangi_safarlar_muallif.xlsx)
+  // Sort trips chronologically
   const sortedTrips = [...trips].sort(
     (a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime()
   );
+
+  // Build full list of legs across all trips
+  interface ExcelLeg {
+    startDt: Date;
+    endDt: Date;
+    from: StopNode;
+    to: StopNode;
+    durationS: number;
+    km: number;
+  }
+
+  const allLegs: ExcelLeg[] = [];
+
+  for (const trip of sortedTrips) {
+    const startMs = new Date(trip.started_at).getTime();
+    const endMs = trip.ended_at ? new Date(trip.ended_at).getTime() : startMs + 3600_000;
+    const totalDurationS = Math.max(600, trip.total_duration_s || Math.floor((endMs - startMs) / 1000));
+    const totalTripKm = Number(((trip.total_distance_m || 0) / 1000).toFixed(1));
+    const dayKey = format(new Date(trip.started_at), 'yyyy-MM-dd');
+
+    // 1. Determine ordered branch stops for this trip:
+    //    Priority A: explicit route stops saved on this trip
+    //    Priority B: all unique branches visited on this day (chronologically)
+    let stopPoints: Point[] = [];
+    let returnHome = true;
+
+    const saved = savedRoutes[trip.id];
+    if (saved && saved.pointIds.length > 0) {
+      stopPoints = saved.pointIds
+        .map((id) => pointsById.get(id))
+        .filter((p): p is Point => !!p);
+      returnHome = saved.returnHome;
+    } else {
+      const dayVisits = visitsByDay.get(dayKey) || [];
+      const seen = new Set<string>();
+      for (const v of dayVisits) {
+        const pt = v.point || (v.point_id ? pointsById.get(v.point_id) : undefined);
+        if (pt && !seen.has(pt.id)) {
+          seen.add(pt.id);
+          stopPoints.push(pt);
+        }
+      }
+    }
+
+    // Build stop chain: Home -> Stop 1 -> Stop 2 -> ... -> Home
+    const chain: StopNode[] = [homeNode];
+    if (stopPoints.length > 0) {
+      for (const pt of stopPoints) {
+        chain.push(pointToStop(pt));
+      }
+      if (returnHome) {
+        chain.push(homeNode);
+      }
+    } else {
+      // No visits or stops recorded for this day: single placeholder leg
+      chain.push({
+        name: 'Kadastr filiali',
+        region: homeNode.region,
+        address: '—',
+        lat: homeNode.lat,
+        lng: homeNode.lng,
+        coords: '—',
+      });
+    }
+
+    // Split total distance & time proportionally across legs by Haversine distance
+    const legCount = chain.length - 1;
+    const rawWeights: number[] = [];
+    for (let i = 0; i < legCount; i++) {
+      const d = haversineKm(chain[i].lat, chain[i].lng, chain[i + 1].lat, chain[i + 1].lng);
+      rawWeights.push(d > 0.2 ? d : 1);
+    }
+    const weightSum = rawWeights.reduce((s, w) => s + w, 0) || legCount;
+
+    let remainingKm = totalTripKm;
+    let cursorMs = startMs;
+
+    for (let i = 0; i < legCount; i++) {
+      const ratio = rawWeights[i] / weightSum;
+      const legKm =
+        i === legCount - 1
+          ? Math.max(0, Number(remainingKm.toFixed(1)))
+          : Number((totalTripKm * ratio).toFixed(1));
+      remainingKm -= legKm;
+
+      const legDurationS = Math.max(300, Math.round(totalDurationS * ratio));
+      const legStart = new Date(cursorMs);
+      const legEnd = new Date(i === legCount - 1 ? Math.max(cursorMs + 300_000, endMs) : cursorMs + legDurationS * 1000);
+      cursorMs = legEnd.getTime();
+
+      allLegs.push({
+        startDt: legStart,
+        endDt: legEnd,
+        from: chain[i],
+        to: chain[i + 1],
+        durationS: legDurationS,
+        km: legKm,
+      });
+    }
+  }
 
   const totalKm = sortedTrips.reduce((s, t) => s + (t.total_distance_m || 0) / 1000, 0);
   const totalComp = sortedTrips.reduce((s, t) => s + (t.compensation_uzs || 0), 0);
@@ -70,7 +281,7 @@ export async function exportTripsToStyledExcel(params: {
   ws.columns = [
     { key: 'num', width: 10 },
     { key: 'startDt', width: 20 },
-    { key: 'fromName', width: 26 },
+    { key: 'fromName', width: 28 },
     { key: 'fromRegion', width: 15 },
     { key: 'fromAddr', width: 22 },
     { key: 'fromCoords', width: 22 },
@@ -95,16 +306,15 @@ export async function exportTripsToStyledExcel(params: {
   // Row 2: KPI Subtitle
   ws.mergeCells('A2:M2');
   const subCell = ws.getCell('A2');
-  subCell.value = `Jami safarlar: ${sortedTrips.length} ta   |   Jami masofa: ${totalKm.toFixed(1)} km   |   Kompensatsiya (${COST_PER_KM.toLocaleString('ru-RU')} so'm/km): ${totalComp.toLocaleString('ru-RU')} so'm`;
+  subCell.value = `Jami yo'nalishlar: ${allLegs.length} ta   |   Jami masofa: ${totalKm.toFixed(1)} km   |   Kompensatsiya (${COST_PER_KM.toLocaleString('ru-RU')} so'm/km): ${totalComp.toLocaleString('ru-RU')} so'm`;
   subCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF1E3A5F' } };
   subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2F8' } };
   subCell.alignment = { vertical: 'middle', horizontal: 'center' };
   ws.getRow(2).height = 22;
 
-  // Row 3: Empty spacer
   ws.getRow(3).height = 8;
 
-  // Row 4: Table Headers (exact column names from Yangi_safarlar_muallif.xlsx)
+  // Row 4: Table Headers
   const headers = [
     'Tartib raqami',
     'Boshlanish sanasi va vaqti',
@@ -145,37 +355,21 @@ export async function exportTripsToStyledExcel(params: {
     right: { style: 'thin' as const, color: { argb: 'FFCBD5E1' } },
   };
 
-  // Data Rows
-  sortedTrips.forEach((trip, idx) => {
-    const startDate = new Date(trip.started_at);
-    const endDate = trip.ended_at ? new Date(trip.ended_at) : startDate;
-    const dayKey = format(startDate, 'yyyy-MM-dd');
-    const dayVisits = visitsByDay.get(dayKey) || [];
-    const primaryPoint = dayVisits[0]?.point;
-
-    const toName = primaryPoint?.name || 'Kadastr filiali';
-    const toRegion = primaryPoint ? detectRegion(primaryPoint.name, primaryPoint.address) : HOME_BASE.region;
-    const toAddr = primaryPoint?.address || '—';
-    const toCoords =
-      primaryPoint && typeof primaryPoint.latitude === 'number' && typeof primaryPoint.longitude === 'number'
-        ? `${primaryPoint.latitude.toFixed(6)}, ${primaryPoint.longitude.toFixed(6)}`
-        : '—';
-
-    const kmVal = Number(((trip.total_distance_m || 0) / 1000).toFixed(1));
+  allLegs.forEach((leg, idx) => {
     const row = ws.addRow([
       idx + 1,
-      format(startDate, 'dd.MM.yyyy HH:mm'),
-      HOME_BASE.name,
-      HOME_BASE.region,
-      HOME_BASE.address,
-      HOME_BASE.coords,
-      format(endDate, 'dd.MM.yyyy HH:mm'),
-      toName,
-      toRegion,
-      toAddr,
-      toCoords,
-      formatHours(trip.total_duration_s),
-      kmVal,
+      format(leg.startDt, 'dd.MM.yyyy HH:mm'),
+      leg.from.name,
+      leg.from.region,
+      leg.from.address,
+      leg.from.coords,
+      format(leg.endDt, 'dd.MM.yyyy HH:mm'),
+      leg.to.name,
+      leg.to.region,
+      leg.to.address,
+      leg.to.coords,
+      formatHours(leg.durationS),
+      leg.km,
     ]);
 
     row.height = 24;
@@ -211,7 +405,7 @@ export async function exportTripsToStyledExcel(params: {
   });
 
   // Total Summary Row
-  const lastDataRow = 4 + sortedTrips.length;
+  const lastDataRow = 4 + allLegs.length;
   const totalRow = ws.addRow([
     '',
     'JAMI',
@@ -220,12 +414,12 @@ export async function exportTripsToStyledExcel(params: {
     '',
     '',
     '',
-    `Jami safarlar: ${sortedTrips.length} ta`,
+    `Jami yo'nalishlar: ${allLegs.length} ta`,
     '',
     '',
     '',
     `${totalComp.toLocaleString('ru-RU')} so'm`,
-    { formula: sortedTrips.length > 0 ? `SUM(M5:M${lastDataRow})` : '0', result: Number(totalKm.toFixed(1)) },
+    { formula: allLegs.length > 0 ? `SUM(M5:M${lastDataRow})` : '0', result: Number(totalKm.toFixed(1)) },
   ]);
   totalRow.height = 28;
   totalRow.eachCell((cell, colNum) => {
@@ -246,7 +440,6 @@ export async function exportTripsToStyledExcel(params: {
     }
   });
 
-  // Generate browser download
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
