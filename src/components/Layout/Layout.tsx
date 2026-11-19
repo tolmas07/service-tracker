@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { supabase } from '../../lib/supabase';
-import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X, Printer, RotateCcw } from 'lucide-react';
+import { Map, Route, ClipboardList, BarChart3, LogOut, Key, X, Printer } from 'lucide-react';
 import { APP_VERSION } from '../../lib/constants';
 
 const workerLinks = [
   { to: '/', icon: Map, label: 'Карта' },
   { to: '/trip', icon: Route, label: 'Поездка' },
   { to: '/prints', icon: Printer, label: 'Печать' },
-  { to: '/reset', icon: RotateCcw, label: 'Сброс' },
   { to: '/history', icon: ClipboardList, label: 'История' },
 ];
 
@@ -17,7 +16,6 @@ const managerLinks = [
   { to: '/manager', icon: BarChart3, label: 'Обзор' },
   { to: '/', icon: Map, label: 'Карта' },
   { to: '/prints', icon: Printer, label: 'Печать' },
-  { to: '/reset', icon: RotateCcw, label: 'Сброс' },
   { to: '/manager/visits', icon: ClipboardList, label: 'Отчеты' },
 ];
 
@@ -216,11 +214,11 @@ export function BottomNav() {
           <Link
             key={to}
             to={to}
-            className={`flex flex-col items-center text-[10px] px-2 py-1.5 rounded-lg transition-colors ${
+            className={`flex flex-col items-center text-[10px] px-3 py-1.5 rounded-lg transition-colors ${
               active ? 'text-blue-600' : 'text-gray-400'
             }`}
           >
-            <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+            <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
             <span className="mt-0.5 font-medium">{label}</span>
           </Link>
         );
