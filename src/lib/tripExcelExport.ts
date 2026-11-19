@@ -77,6 +77,36 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * Queries OpenStreetMap OSRM public driving router for real road distances & durations per leg.
+ * Falls back cleanly to null on timeout/offline so Haversine proportional split takes over.
+ */
+async function fetchOsrmLegs(
+  chain: { lat: number; lng: number }[]
+): Promise<{ distanceKm: number; durationS: number }[] | null> {
+  if (chain.length < 2) return null;
+  try {
+    const coords = chain.map((c) => `${c.lng.toFixed(6)},${c.lat.toFixed(6)}`).join(';');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=false`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const legs = json?.routes?.[0]?.legs;
+    if (!Array.isArray(legs) || legs.length !== chain.length - 1) return null;
+    return legs.map((l: { distance?: number; duration?: number }) => ({
+      distanceKm: Math.max(0.1, (l.distance || 0) / 1000),
+      durationS: Math.max(300, Math.round(l.duration || 0)),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 function detectRegion(name = '', address = ''): string {
   const s = `${name} ${address}`.toLowerCase();
   if (s.includes('джиззак') || s.includes('жиззах') || s.includes('jizzax') || s.includes('дустлик') || s.includes('пахтакор') || s.includes('арнасай') || s.includes('замин') || s.includes('бахмал') || s.includes('галляарал')) return 'Jizzax';
@@ -238,12 +268,18 @@ export async function exportTripsToStyledExcel(params: {
       });
     }
 
-    // Split total distance & time proportionally across legs by Haversine distance
+    // Split total distance & time across legs using real OSRM driving roads (with Haversine fallback)
     const legCount = chain.length - 1;
+    const osrmLegs = stopPoints.length > 0 ? await fetchOsrmLegs(chain) : null;
+
     const rawWeights: number[] = [];
     for (let i = 0; i < legCount; i++) {
-      const d = haversineKm(chain[i].lat, chain[i].lng, chain[i + 1].lat, chain[i + 1].lng);
-      rawWeights.push(d > 0.2 ? d : 1);
+      if (osrmLegs && osrmLegs[i]) {
+        rawWeights.push(osrmLegs[i].distanceKm);
+      } else {
+        const d = haversineKm(chain[i].lat, chain[i].lng, chain[i + 1].lat, chain[i + 1].lng);
+        rawWeights.push(d > 0.2 ? d : 1);
+      }
     }
     const weightSum = rawWeights.reduce((s, w) => s + w, 0) || legCount;
 
@@ -258,7 +294,10 @@ export async function exportTripsToStyledExcel(params: {
           : Number((totalTripKm * ratio).toFixed(1));
       remainingKm -= legKm;
 
-      const legDurationS = Math.max(300, Math.round(totalDurationS * ratio));
+      const legDurationS =
+        osrmLegs && osrmLegs[i]
+          ? osrmLegs[i].durationS
+          : Math.max(300, Math.round(totalDurationS * ratio));
       const legStart = new Date(cursorMs);
       const legEnd = new Date(i === legCount - 1 ? Math.max(cursorMs + 300_000, endMs) : cursorMs + legDurationS * 1000);
       cursorMs = legEnd.getTime();

@@ -7,7 +7,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns
 import { ru } from 'date-fns/locale';
 import {
   Plus, List, Ruler, Pencil, Trash2, Check, Wallet, Route, MapPin,
-  Clock, ChevronLeft, ChevronRight, Download, Home, X, Locate, Sparkles
+  Clock, ChevronLeft, ChevronRight, Download, Home, X, Locate, Sparkles, Calendar
 } from 'lucide-react';
 import type { Point, Trip, Visit } from '../../types';
 import { COST_PER_KM } from '../../types';
@@ -213,8 +213,17 @@ export function ManualTripForm() {
   const [saving, setSaving] = useState(false);
 
   // List State
-  const [periodMode, setPeriodMode] = useState<'month' | 'all'>('month');
+  const [periodMode, setPeriodMode] = useState<'month' | 'range' | 'all'>('month');
   const [monthValue, setMonthValue] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [rangeFrom, setRangeFrom] = useState(() => {
+    const d = new Date();
+    const prev = subMonths(d, 1);
+    return format(new Date(prev.getFullYear(), prev.getMonth(), 15), 'yyyy-MM-dd');
+  });
+  const [rangeTo, setRangeTo] = useState(() => {
+    const d = new Date();
+    return format(new Date(d.getFullYear(), d.getMonth(), 15), 'yyyy-MM-dd');
+  });
   const [exporting, setExporting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editKm, setEditKm] = useState('');
@@ -247,6 +256,14 @@ export function ManualTripForm() {
 
   const filteredTrips = useMemo(() => {
     if (periodMode === 'all') return trips;
+    if (periodMode === 'range') {
+      const startMs = rangeFrom ? new Date(`${rangeFrom}T00:00:00`).getTime() : 0;
+      const endMs = rangeTo ? new Date(`${rangeTo}T23:59:59.999`).getTime() : Infinity;
+      return trips.filter((t) => {
+        const ts = new Date(t.started_at).getTime();
+        return ts >= startMs && ts <= endMs;
+      });
+    }
     const [y, m] = monthValue.split('-').map(Number);
     const start = startOfMonth(new Date(y, (m || 1) - 1, 1)).getTime();
     const end = endOfMonth(new Date(y, (m || 1) - 1, 1));
@@ -256,7 +273,7 @@ export function ManualTripForm() {
       const ts = new Date(t.started_at).getTime();
       return ts >= start && ts <= endMs;
     });
-  }, [trips, periodMode, monthValue]);
+  }, [trips, periodMode, monthValue, rangeFrom, rangeTo]);
 
   const totalKm = useMemo(
     () => filteredTrips.reduce((s, t) => s + (t.total_distance_m || 0) / 1000, 0),
@@ -269,9 +286,14 @@ export function ManualTripForm() {
 
   const monthLabel = useMemo(() => {
     if (periodMode === 'all') return 'За всё время';
+    if (periodMode === 'range') {
+      const f = rangeFrom ? format(new Date(`${rangeFrom}T00:00:00`), 'dd.MM.yyyy') : '...';
+      const t = rangeTo ? format(new Date(`${rangeTo}T00:00:00`), 'dd.MM.yyyy') : '...';
+      return `${f} — ${t}`;
+    }
     const [y, m] = monthValue.split('-').map(Number);
     return format(new Date(y, (m || 1) - 1, 1), 'LLLL yyyy', { locale: ru });
-  }, [periodMode, monthValue]);
+  }, [periodMode, monthValue, rangeFrom, rangeTo]);
 
   const shiftMonth = (delta: number) => {
     const [y, m] = monthValue.split('-').map(Number);
@@ -419,12 +441,19 @@ export function ManualTripForm() {
         visits = (data || []) as Visit[];
       }
 
+      const fileSuffix =
+        periodMode === 'month'
+          ? monthValue
+          : periodMode === 'range'
+          ? `${rangeFrom}_${rangeTo}`
+          : 'barchasi';
+
       await exportTripsToStyledExcel({
         trips: filteredTrips,
         visits,
         points,
         periodLabel: monthLabel,
-        fileName: `Safarlar_hisoboti_${periodMode === 'month' ? monthValue : 'barchasi'}.xlsx`,
+        fileName: `Safarlar_hisoboti_${fileSuffix}.xlsx`,
         workerName: user?.full_name,
       });
     } finally {
@@ -669,50 +698,81 @@ export function ManualTripForm() {
 
           {activeTab === 'list' && (
             <div className="space-y-4">
-              {/* Month Filter & Excel Export */}
-              <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => shiftMonth(-1)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 active:scale-95 cursor-pointer"
-                    title="Предыдущий месяц"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    onClick={() => setPeriodMode(periodMode === 'month' ? 'all' : 'month')}
-                    className="px-2.5 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 rounded-lg capitalize cursor-pointer"
-                  >
-                    {monthLabel}
-                  </button>
-                  <button
-                    onClick={() => shiftMonth(1)}
-                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 active:scale-95 cursor-pointer"
-                    title="Следующий месяц"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+              {/* Period Filter (Month / Exact Date Range / All) & Excel Export */}
+              <div className="bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm space-y-2.5">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {([
+                      { id: 'month', label: 'Месяц' },
+                      { id: 'range', label: 'Даты' },
+                      { id: 'all', label: 'Все' },
+                    ] as const).map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setPeriodMode(tab.id)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
+                          periodMode === tab.id
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tab.id === 'range' && <Calendar size={12} />}
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
 
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setPeriodMode(periodMode === 'all' ? 'month' : 'all')}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
-                      periodMode === 'all'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    Все
-                  </button>
                   <button
                     onClick={handleExportExcel}
                     disabled={exporting || filteredTrips.length === 0}
-                    className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[11px] font-semibold hover:bg-emerald-700 disabled:opacity-40 flex items-center gap-1 cursor-pointer shadow-sm"
                   >
-                    <Download size={13} /> {exporting ? '...' : 'Excel'}
+                    <Download size={13} /> {exporting ? 'Расчёт...' : 'Excel'}
                   </button>
                 </div>
+
+                {periodMode === 'month' && (
+                  <div className="flex items-center justify-between bg-gray-50 rounded-lg px-1 py-0.5">
+                    <button
+                      onClick={() => shiftMonth(-1)}
+                      className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-600 active:scale-95 cursor-pointer"
+                      title="Предыдущий месяц"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-bold text-gray-800 capitalize">{monthLabel}</span>
+                    <button
+                      onClick={() => shiftMonth(1)}
+                      className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-600 active:scale-95 cursor-pointer"
+                      title="Следующий месяц"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {periodMode === 'range' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] text-gray-400 mb-0.5">С даты</span>
+                      <input
+                        type="date"
+                        value={rangeFrom}
+                        onChange={(e) => setRangeFrom(e.target.value)}
+                        className="w-full min-w-0 max-w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] text-gray-400 mb-0.5">По дату</span>
+                      <input
+                        type="date"
+                        value={rangeTo}
+                        onChange={(e) => setRangeTo(e.target.value)}
+                        className="w-full min-w-0 max-w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Compensation Stats Card */}
