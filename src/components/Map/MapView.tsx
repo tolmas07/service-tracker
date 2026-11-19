@@ -543,8 +543,8 @@ export function MapView() {
         })}
       </MapContainer>
 
-      {/* Legend + Quick Filters */}
-      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[1000] border border-gray-100 min-w-[165px]">
+      {/* Legend + Quick Filters (z-[500] so open Leaflet popups z-700 float cleanly above it) */}
+      <div className="absolute top-4 left-4 bg-white/95 backdrop-blur rounded-xl shadow-lg p-3 text-xs z-[500] border border-gray-100 min-w-[165px]">
         <div className="font-semibold text-gray-700 mb-2">Статус точек</div>
         <div className="space-y-1">
           <button

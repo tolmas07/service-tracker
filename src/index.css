@@ -48,6 +48,19 @@ body {
   padding-top: max(0rem, env(safe-area-inset-top, 0px));
 }
 
+/* Fix iOS Safari native date/time/month inputs overflowing grid containers */
+input[type="date"],
+input[type="time"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+}
+
 /* Leaflet map — full size */
 .leaflet-container {
   width: 100%;

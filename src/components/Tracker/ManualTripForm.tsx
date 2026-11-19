@@ -304,22 +304,22 @@ export function ManualTripForm() {
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <span className="block text-[10px] text-gray-400 mb-1">Выезд</span>
                       <input
                         type="time"
                         value={timeStart}
                         onChange={(e) => setTimeStart(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                        className="w-full min-w-0 max-w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                       />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="block text-[10px] text-gray-400 mb-1">Прибытие</span>
                       <input
                         type="time"
                         value={timeEnd}
                         onChange={(e) => setTimeEnd(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                        className="w-full min-w-0 max-w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
@@ -390,7 +390,7 @@ export function ManualTripForm() {
                   ) : (
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <span className="block text-[10px] text-gray-400 mb-1">Начало (одометр)</span>
                           <input
                             type="number"
@@ -398,10 +398,10 @@ export function ManualTripForm() {
                             value={odoStart}
                             onChange={(e) => setOdoStart(e.target.value)}
                             placeholder="124500"
-                            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                            className="w-full min-w-0 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                           />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <span className="block text-[10px] text-gray-400 mb-1">Конец (одометр)</span>
                           <input
                             type="number"
@@ -409,7 +409,7 @@ export function ManualTripForm() {
                             value={odoEnd}
                             onChange={(e) => setOdoEnd(e.target.value)}
                             placeholder="124620"
-                            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                            className="w-full min-w-0 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                           />
                         </div>
                       </div>
@@ -604,7 +604,7 @@ export function ManualTripForm() {
                           {isEditing && (
                             <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
                               <div className="grid grid-cols-2 gap-2.5">
-                                <div>
+                                <div className="min-w-0">
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
                                     Дата
                                   </label>
@@ -612,10 +612,10 @@ export function ManualTripForm() {
                                     type="date"
                                     value={editDate}
                                     onChange={(e) => setEditDate(e.target.value)}
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+                                    className="w-full min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
                                   />
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
                                     Пробег (км)
                                   </label>
@@ -626,7 +626,7 @@ export function ManualTripForm() {
                                     onChange={(e) => setEditKm(e.target.value)}
                                     step="0.1"
                                     min="0"
-                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-blue-700 outline-none focus:border-blue-500"
+                                    className="w-full min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-blue-700 outline-none focus:border-blue-500"
                                   />
                                 </div>
                               </div>
