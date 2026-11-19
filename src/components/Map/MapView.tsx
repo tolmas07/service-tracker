@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { usePoints, useCreatePoint, useUpdatePointStatus, useUpdatePoint, useDeletePoint } from '../../hooks/usePoints';
 import { usePrintSummary30d, useLastVisitsByPoint, getVisitAgeInfo } from '../../hooks/usePrintStats';
+import { loadHomeBase } from '../../lib/tripExcelExport';
 import { useAuthStore } from '../../stores/authStore';
 import type { Point, PointStatus } from '../../types';
 import { useNavigate } from 'react-router-dom';
@@ -60,6 +61,14 @@ const userIcon = L.divIcon({
   html: `<div style="width:20px;height:20px;background:#2563eb;border:3px solid white;border-radius:50%;box-shadow:0 0 0 8px rgba(37,99,235,0.2),0 2px 8px rgba(0,0,0,0.3)"></div>`,
   iconSize: [20, 20],
   iconAnchor: [10, 10],
+});
+
+const homeIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:34px;height:34px;background:linear-gradient(135deg,#4f46e5,#2563eb);color:white;border:3px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px rgba(79,70,229,0.22),0 4px 12px rgba(37,99,235,0.45)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  popupAnchor: [0, -18],
 });
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -125,6 +134,7 @@ export function MapView() {
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
   const userPosRef = useRef<[number, number] | null>(null);
+  const homeBase = useMemo(() => loadHomeBase(), []);
   const [filter, setFilter] = useState<MapFilter>('all');
 
   // Route builder state
@@ -333,6 +343,36 @@ export function MapView() {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserPositionMarker onPosition={handleUserPos} />
         <FlyTo position={flyTo} />
+
+        {/* Home Base glowing marker */}
+        {Number.isFinite(homeBase.lat) && Number.isFinite(homeBase.lng) && (
+          <Marker position={[homeBase.lat, homeBase.lng]} icon={homeIcon} zIndexOffset={500}>
+            <Popup maxWidth={250} minWidth={200}>
+              <div className="p-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
+                    🏠 {homeBase.name}
+                  </span>
+                  <span className="text-[11px] text-gray-400">{homeBase.region}</span>
+                </div>
+                {homeBase.address && (
+                  <p className="text-xs text-gray-600 mt-1.5">{homeBase.address}</p>
+                )}
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {homeBase.lat.toFixed(6)}, {homeBase.lng.toFixed(6)}
+                </p>
+                <a
+                  href={`https://yandex.uz/maps/?rtext=~${homeBase.lat},${homeBase.lng}&rtt=auto`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2.5 w-full text-xs px-2.5 py-2 bg-yellow-50 text-yellow-800 rounded-lg hover:bg-yellow-100 transition-colors font-semibold flex items-center justify-center gap-1.5 no-underline"
+                >
+                  <Navigation size={13} /> Домой в Яндекс Картах
+                </a>
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
         {visiblePoints.map((point) => {
           const visitInfo = getVisitAgeInfo(lastVisits[point.id]);
